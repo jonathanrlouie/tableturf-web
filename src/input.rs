@@ -64,7 +64,7 @@ fn placement_collision(inked_spaces: &[(i32, i32, BoardSpace)], board: &Board) -
 fn special_collision(inked_spaces: &[(i32, i32, BoardSpace)], board: &Board) -> bool {
     inked_spaces.iter().any(|(x, y, _)| {
         let board_space = board.get_space(*x, *y);
-        matches!(board_space, BoardSpace::PlayerSpecial { .. })
+        matches!(board_space, BoardSpace::Special { .. })
             || matches!(board_space, BoardSpace::Wall)
             || matches!(board_space, BoardSpace::OutOfBounds)
     })
@@ -90,8 +90,8 @@ fn get_absolute_position(x: usize, y: usize, board_x: i32, board_y: i32) -> Opti
 
 fn get_player_ink(ink_space: InkSpace, player_num: PlayerNum) -> BoardSpace {
     match ink_space {
-        InkSpace::Normal => BoardSpace::PlayerInk { player_num },
-        InkSpace::Special => BoardSpace::PlayerSpecial {
+        InkSpace::Normal => BoardSpace::Ink { player_num },
+        InkSpace::Special => BoardSpace::Special {
             player_num,
             is_activated: false,
         },

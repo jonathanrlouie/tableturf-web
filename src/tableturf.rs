@@ -27,10 +27,10 @@ pub type PlayerNum = usize;
 #[derive(Copy, Clone)]
 pub enum BoardSpace {
     Empty,
-    PlayerInk {
+    Ink {
         player_num: PlayerNum,
     },
-    PlayerSpecial {
+    Special {
         player_num: PlayerNum,
         is_activated: bool,
     },
@@ -41,7 +41,7 @@ pub enum BoardSpace {
 impl BoardSpace {
     pub fn is_ink(&self, num: PlayerNum) -> bool {
         match self {
-            BoardSpace::PlayerInk { player_num } | BoardSpace::PlayerSpecial { player_num, .. } => {
+            BoardSpace::Ink { player_num } | BoardSpace::Special { player_num, .. } => {
                 *player_num == num
             }
             _ => false,
@@ -165,7 +165,7 @@ impl GameState {
         let special_spaces = self.board.get_inactive_specials(player_num);
         // activate surrounded special spaces
         for (x, y, s) in &special_spaces {
-            self.board.0[*y][*x] = BoardSpace::PlayerSpecial {
+            self.board.0[*y][*x] = BoardSpace::Special {
                 player_num,
                 is_activated: true,
             }
@@ -219,7 +219,7 @@ fn is_surrounded(x: i32, y: i32, board: &Board) -> bool {
 
 fn is_inactive_special(s: &BoardSpace, num: PlayerNum) -> bool {
     match s {
-        BoardSpace::PlayerSpecial {
+        BoardSpace::Special {
             player_num,
             is_activated,
         } => *player_num == num && !is_activated,
