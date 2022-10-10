@@ -44,7 +44,7 @@ fn adjacent_to_ink(x: i32, y: i32, board: &Board, player_num: PlayerNum) -> bool
 
 // Test if an entire placement of ink is adjacent to a player's inked space
 fn placement_adjacent_to_ink(
-    inked_spaces: &[(i32, i32, BoardSpace)],
+    inked_spaces: &[(i32, i32, InkSpace)],
     board: &Board,
     player_num: PlayerNum,
 ) -> bool {
@@ -53,15 +53,33 @@ fn placement_adjacent_to_ink(
         .any(|(x, y, _)| adjacent_to_ink(*x, *y, board, player_num))
 }
 
+// Test if a single space is adjacent to a player's special space
+fn adjacent_to_special(x: i32, y: i32, board: &Board, player_num: PlayerNum) -> bool {
+    surrounding_spaces(x, y, board)
+        .iter()
+        .any(|s| s.is_special(player_num))
+}
+
+// Test if an entire placement of ink is adjacent to one of the player's special spaces
+fn placement_adjacent_to_special(
+    inked_spaces: &[(i32, i32, InkSpace)],
+    board: &Board,
+    player_num: PlayerNum,
+) -> bool {
+    inked_spaces
+        .iter()
+        .any(|(x, y, _)| adjacent_to_special(*x, *y, board, player_num))
+}
+
 // Test if an entire placement of ink overlaps ink or walls
-fn placement_collision(inked_spaces: &[(i32, i32, BoardSpace)], board: &Board) -> bool {
+fn placement_collision(inked_spaces: &[(i32, i32, InkSpace)], board: &Board) -> bool {
     inked_spaces
         .iter()
         .any(|(x, y, _)| !matches!(board.get_space(*x, *y), BoardSpace::Empty))
 }
 
 // Test if an entire special placement of ink overlaps any special spaces or walls
-fn special_collision(inked_spaces: &[(i32, i32, BoardSpace)], board: &Board) -> bool {
+fn special_collision(inked_spaces: &[(i32, i32, InkSpace)], board: &Board) -> bool {
     inked_spaces.iter().any(|(x, y, _)| {
         let board_space = board.get_space(*x, *y);
         matches!(board_space, BoardSpace::Special { .. })
@@ -73,7 +91,7 @@ fn special_collision(inked_spaces: &[(i32, i32, BoardSpace)], board: &Board) -> 
 fn invalid_special_placement(
     selected_card: &Card,
     game_state: &GameState,
-    ink_spaces: &[(i32, i32, BoardSpace)],
+    ink_spaces: &[(i32, i32, InkSpace)],
     player_num: PlayerNum,
 ) -> bool {
     let not_enough_special = game_state.players[player_num].special < selected_card.special;
@@ -88,15 +106,6 @@ fn get_absolute_position(x: usize, y: usize, board_x: i32, board_y: i32) -> Opti
     Some((x, y))
 }
 
-fn get_player_ink(ink_space: InkSpace, player_num: PlayerNum) -> BoardSpace {
-    match ink_space {
-        InkSpace::Normal => BoardSpace::Ink { player_num },
-        InkSpace::Special => BoardSpace::Special {
-            player_num,
-            is_activated: false,
-        },
-    }
-}
 
 fn rotate_grid_ccw(grid: &mut Grid) {
     for i in 0..(ROW_LEN / 2) {
@@ -172,9 +181,9 @@ impl ValidInput {
                     })
                     .map(|(x, y, s)| {
                         get_absolute_position(x, y, board_x, board_y)
-                            .map(|(int_x, int_y)| (int_x, int_y, get_player_ink(s, player_num)))
+                            .map(|(int_x, int_y)| (int_x, int_y, s))
                     })
-                    .collect::<Option<Vec<(i32, i32, BoardSpace)>>>()?;
+                    .collect::<Option<Vec<(i32, i32, InkSpace)>>>()?;
 
                 if special_activated {
                     // Check that player has enough special and that the special isn't
@@ -187,14 +196,21 @@ impl ValidInput {
                     ) {
                         return None;
                     }
+                    
+                    // Check that ink placement is adjacent to one of the player's special spaces
+                    if !placement_adjacent_to_special(&ink_spaces[..], &game_state.board, player_num) {
+                        return None;
+                    }
                 // Check that ink placement is over empty squares
-                } else if placement_collision(&ink_spaces[..], &game_state.board) {
-                    return None;
-                }
-
-                // Check that ink placement is adjacent to player's ink
-                if !placement_adjacent_to_ink(&ink_spaces[..], &game_state.board, player_num) {
-                    return None;
+                } else {
+                    if placement_collision(&ink_spaces[..], &game_state.board) {
+                        return None;
+                    }
+                    
+                    // Check that ink placement is adjacent to player's ink
+                    if !placement_adjacent_to_ink(&ink_spaces[..], &game_state.board, player_num) {
+                        return None;
+                    }
                 }
 
                 Some(Self {

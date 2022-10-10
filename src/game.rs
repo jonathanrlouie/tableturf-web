@@ -23,8 +23,13 @@ fn update_game_state(game_state: &mut GameState, input1: ValidInput, input2: Val
             game_state.place_both(card_idx1, card_idx2, placement1, placement2);
         }
     };
-    game_state.players[0].replace_card(card_idx1);
-    game_state.players[1].replace_card(card_idx2);
+    let player1 = &mut game_state.players[0];
+    player1.replace_card(card_idx1);
+    player1.update_special_gauge(&mut game_state.board);
+    let player2 = &mut game_state.players[1];
+    player2.replace_card(card_idx2);
+    player2.update_special_gauge(&mut game_state.board);
+
     if game_state.turns_left > 0 {
         game_state.turns_left -= 1;
     }

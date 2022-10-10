@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use rand::prelude::IteratorRandom;
 use rand::thread_rng;
 
@@ -9,6 +10,18 @@ pub const DECK_SIZE: usize = 15;
 pub enum InkSpace {
     Normal,
     Special,
+}
+
+impl InkSpace {
+    fn into_board_space(self, player_num: PlayerNum) -> BoardSpace {
+        match self {
+            InkSpace::Normal => BoardSpace::Ink { player_num },
+            InkSpace::Special => BoardSpace::Special {
+                player_num,
+                is_activated: false,
+            },
+        }
+    }
 }
 
 pub type CardSpace = Option<InkSpace>;
@@ -47,9 +60,18 @@ impl BoardSpace {
             _ => false,
         }
     }
+
+    pub fn is_special(&self, num: PlayerNum) -> bool {
+        match self {
+            BoardSpace::Special { player_num, .. } => {
+                *player_num == num
+            }
+            _ => false,
+        }
+    }
 }
 
-#[derive(PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum CardState {
     Available(Card),
     Unavailable,
@@ -62,6 +84,7 @@ pub struct Player {
     pub hand: Hand,
     pub deck: Deck,
     pub special: u32,
+    pub num: PlayerNum,
 }
 
 impl Player {
@@ -74,13 +97,13 @@ impl Player {
     }
 
     fn discard_card(&mut self, idx: usize) {
-        let card_to_discard = self.hand[idx];
-        let discarded_card_option = self
+        let card_to_discard = &mut self.hand[idx];
+        let discarded_card_idx = self
             .deck
-            .iter_mut()
-            .find(|c| **c == CardState::Available(card_to_discard));
-        if let Some(discarded_card) = discarded_card_option {
-            *discarded_card = CardState::Unavailable;
+            .iter()
+            .position(|c| *c == CardState::Available(*card_to_discard));
+        if let Some(discarded_card) = discarded_card_idx {
+            self.deck[discarded_card] = CardState::Unavailable;
         }
     }
 
@@ -96,6 +119,25 @@ impl Player {
             })
             .choose(&mut rng)?;
         Some(*new_card)
+    }
+
+    pub fn spend_special(&mut self, placement: &Placement, card_idx: usize) {
+        if placement.special_activated {
+            let selected_card = self.hand[card_idx];
+            self.special -= selected_card.special;
+        }
+    }
+
+    pub fn update_special_gauge(&mut self, board: &mut Board) {
+        let special_spaces = board.get_surrounded_inactive_specials(self.num);
+        // activate surrounded special spaces
+        for (x, y, _) in &special_spaces {
+            board.0[*y][*x] = BoardSpace::Special {
+                player_num: self.num,
+                is_activated: true,
+            }
+        }
+        self.special += special_spaces.len() as u32;
     }
 }
 
@@ -117,7 +159,7 @@ impl Board {
         Some(*space)
     }
 
-    pub fn get_inactive_specials(&self, player_num: PlayerNum) -> Vec<(usize, usize, BoardSpace)> {
+    pub fn get_surrounded_inactive_specials(&self, player_num: PlayerNum) -> Vec<(usize, usize, BoardSpace)> {
         self.0
             .iter()
             .enumerate()
@@ -132,12 +174,24 @@ impl Board {
             })
             .collect()
     }
+
+    pub fn set_ink(&mut self, ink_spaces: Vec<(i32, i32, BoardSpace)>) {
+        for (x, y, s) in ink_spaces {
+            (self.0)[y as usize][x as usize] = s;
+        }
+    }
 }
 
 pub struct Placement {
     // Inked spaces with absolute board positions
-    pub ink_spaces: Vec<(i32, i32, BoardSpace)>,
+    pub ink_spaces: Vec<(i32, i32, InkSpace)>,
     pub special_activated: bool,
+}
+
+impl Placement {
+    pub fn into_board_spaces(self, player_num: PlayerNum) -> Vec<(i32, i32, BoardSpace)> {
+        self.ink_spaces.iter().map(|(x, y, s)| (*x, *y, s.into_board_space(player_num))).collect()
+    }
 }
 
 enum Outcome {
@@ -155,38 +209,65 @@ pub struct GameState {
 impl GameState {
     pub fn place(&mut self, card_idx: usize, placement: Placement, player_num: PlayerNum) {
         let player = &mut self.players[player_num];
-        let selected_card = player.hand[card_idx];
-        if placement.special_activated {
-            player.special -= selected_card.special;
-        }
-        for (x, y, s) in placement.ink_spaces {
-            (self.board.0)[y as usize][x as usize] = s;
-        }
-        let special_spaces = self.board.get_inactive_specials(player_num);
-        // activate surrounded special spaces
-        for (x, y, s) in &special_spaces {
-            self.board.0[*y][*x] = BoardSpace::Special {
-                player_num,
-                is_activated: true,
-            }
-        }
-        player.special += special_spaces.len() as u32;
+        player.spend_special(&placement, card_idx);
+        self.board.set_ink(placement.into_board_spaces(player_num));
     }
 
     pub fn place_both(
         &mut self,
         card_idx1: usize,
         card_idx2: usize,
-        p1_input: Placement,
-        p2_input: Placement,
+        placement1: Placement,
+        placement2: Placement,
     ) {
+        // Spend special, if activated
+        let player1 = &mut self.players[0];
+        let priority1 = player1.hand[card_idx1].priority;
+        player1.spend_special(&placement1, card_idx1);
+        let player2 = &mut self.players[1];
+        let priority2 = player2.hand[card_idx2].priority;
+        player2.spend_special(&placement2, card_idx2);
+        
+        let overlap: Vec<(i32, i32, InkSpace, InkSpace)> = placement1.ink_spaces.iter()
+            .filter_map(|(x1, y1, s1)| {
+                placement2.ink_spaces.iter().find(|&&(x2, y2, _)| *x1 == x2 && *y1 == y2)
+                    .map(|(_, _, s2)| (*x1, *y1, *s1, *s2))
+            })
+            .collect();
+        
+        if !overlap.is_empty() {
+            let overlap_resolved = match priority1.cmp(&priority2) {
+                Ordering::Greater => resolve_overlap(
+                    overlap,
+                    BoardSpace::Ink{ player_num: 1 },
+                    BoardSpace::Special{ player_num: 1, is_activated: false }
+                ),
+                Ordering::Less => resolve_overlap(
+                    overlap,
+                    BoardSpace::Ink{ player_num: 0 },
+                    BoardSpace::Special{ player_num: 0, is_activated: false }
+                ),
+                Ordering::Equal => resolve_overlap(
+                    overlap,
+                    BoardSpace::Wall,
+                    BoardSpace::Wall
+                )
+            };
+            // No need to try to find parts that don't overlap as long as
+            // we set the overlapping ink last
+            self.board.set_ink(placement1.into_board_spaces(0));
+            self.board.set_ink(placement2.into_board_spaces(1));
+            self.board.set_ink(overlap_resolved);
+        } else {
+            self.board.set_ink(placement1.into_board_spaces(0));
+            self.board.set_ink(placement2.into_board_spaces(1));
+        }
     }
 
     pub fn check_winner(&self) -> Outcome {
         let p1_inked_spaces = count_inked_spaces(&self.board, 0);
         let p2_inked_spaces = count_inked_spaces(&self.board, 1);
 
-        use std::cmp::Ordering;
         match p1_inked_spaces.cmp(&p2_inked_spaces) {
             Ordering::Greater => Outcome::P1Win,
             Ordering::Less => Outcome::P2Win,
@@ -232,8 +313,23 @@ fn count_inked_spaces(board: &Board, player_num: PlayerNum) -> u32 {
         acc + row
             .iter()
             .filter(|s| s.is_ink(player_num))
-            .fold(0, |acc, c| acc + 1)
+            .fold(0, |acc, _| acc + 1)
     })
+}
+
+fn resolve_overlap(
+    overlap: Vec<(i32, i32, InkSpace, InkSpace)>,
+    normal_collision_space: BoardSpace,
+    special_collision_space: BoardSpace
+) -> Vec<(i32, i32, BoardSpace)> {
+    overlap.iter().map(|(x, y, s1, s2)| {
+        (*x, *y, match (s1, s2) {
+            (InkSpace::Normal, InkSpace::Normal) => normal_collision_space,
+            (InkSpace::Special, InkSpace::Normal) => BoardSpace::Special{ player_num: 0, is_activated: false},
+            (InkSpace::Normal, InkSpace::Special) => BoardSpace::Special{ player_num: 1, is_activated: false},
+            (InkSpace::Special, InkSpace::Special) => special_collision_space
+        })
+    }).collect::<Vec<(i32, i32, BoardSpace)>>()
 }
 
 #[cfg(test)]
