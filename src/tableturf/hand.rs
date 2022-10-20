@@ -1,4 +1,4 @@
-use crate::deck::DeckIndex;
+use crate::tableturf::deck::DeckIndex;
 
 pub use self::hand_idx::{HAND_SIZE, HandIndex};
 

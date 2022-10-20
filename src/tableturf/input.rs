@@ -1,8 +1,8 @@
-use crate::game_state::GameState;
-use crate::hand::HandIndex;
-use crate::player::PlayerNum;
-use crate::card::{Card, Grid, InkSpace, ROW_LEN};
-use crate::board::{self, BoardPosition, BoardSpace, Board};
+use crate::tableturf::game_state::GameState;
+use crate::tableturf::hand::HandIndex;
+use crate::tableturf::player::PlayerNum;
+use crate::tableturf::card::{Card, Grid, InkSpace, ROW_LEN};
+use crate::tableturf::board::{self, BoardPosition, BoardSpace, Board};
 
 // A card can be rotated in one of 4 different ways
 #[derive(Copy, Clone)]

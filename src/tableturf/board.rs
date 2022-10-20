@@ -1,4 +1,4 @@
-use crate::player::PlayerNum;
+use crate::tableturf::player::PlayerNum;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum BoardSpace {

@@ -1,8 +1,8 @@
-use rand::prelude::IteratorRandom;
 use rand::thread_rng;
+use rand::prelude::IteratorRandom;
 pub use self::deck_idx::{DECK_SIZE, DeckIndex};
 
-use crate::card::CardState;
+use crate::tableturf::card::CardState;
 
 pub struct Deck(pub [CardState; DECK_SIZE]);
 

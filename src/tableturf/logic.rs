@@ -1,10 +1,10 @@
 use std::cmp::Ordering;
-use crate::player::{Player, PlayerNum};
-use crate::board::{Board, BoardSpace, BoardPosition};
-use crate::input::{Input, Placement, ValidInput};
-use crate::game_state::GameState;
-use crate::hand::HandIndex;
-use crate::card::InkSpace;
+use crate::tableturf::player::{Player, PlayerNum};
+use crate::tableturf::board::{Board, BoardSpace, BoardPosition};
+use crate::tableturf::input::{Input, Placement, ValidInput};
+use crate::tableturf::game_state::GameState;
+use crate::tableturf::hand::HandIndex;
+use crate::tableturf::card::InkSpace;
 
 enum Outcome {
     P1Win,
@@ -188,10 +188,10 @@ fn main_logic() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::deck::{Deck, DeckIndex};
-    use crate::hand::{Hand, HandIndex};
-    use crate::card::{Card, CardSpace, CardState};
-    use crate::board::{self, Board, BoardPosition};
+    use crate::tableturf::deck::{Deck, DeckIndex};
+    use crate::tableturf::hand::{Hand, HandIndex};
+    use crate::tableturf::card::{Card, CardSpace, CardState};
+    use crate::tableturf::board::{self, Board, BoardPosition};
 
     fn board_pos(board: &Board, x: i32, y: i32) -> BoardPosition {
         BoardPosition::new(board, x, y).unwrap()

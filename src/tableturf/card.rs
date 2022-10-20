@@ -1,5 +1,5 @@
-use crate::board::BoardSpace;
-use crate::player::PlayerNum;
+use crate::tableturf::board::BoardSpace;
+use crate::tableturf::player::PlayerNum;
 
 pub const ROW_LEN: usize = 8;
 

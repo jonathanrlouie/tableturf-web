@@ -1,8 +1,6 @@
-use rand::prelude::IteratorRandom;
-use rand::thread_rng;
-use crate::input::Placement;
-use crate::deck::{Deck, DeckIndex};
-use crate::hand::{Hand, HandIndex};
+use crate::tableturf::input::Placement;
+use crate::tableturf::deck::{Deck, DeckIndex};
+use crate::tableturf::hand::{Hand, HandIndex};
 
 
 #[derive(Copy, Clone, Debug, PartialEq)]
