@@ -1,12 +1,11 @@
-use crate::tableturf::input::Placement;
 use crate::tableturf::deck::{Deck, DeckIndex};
 use crate::tableturf::hand::{Hand, HandIndex};
-
+use crate::tableturf::input::Placement;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PlayerNum {
     P1,
-    P2
+    P2,
 }
 
 impl PlayerNum {

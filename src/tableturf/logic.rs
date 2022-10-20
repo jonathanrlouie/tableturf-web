@@ -1,10 +1,10 @@
-use std::cmp::Ordering;
-use crate::tableturf::player::{Player, PlayerNum};
-use crate::tableturf::board::{Board, BoardSpace, BoardPosition};
-use crate::tableturf::input::{Input, Placement, ValidInput};
+use crate::tableturf::board::{Board, BoardPosition, BoardSpace};
+use crate::tableturf::card::InkSpace;
 use crate::tableturf::game_state::GameState;
 use crate::tableturf::hand::HandIndex;
-use crate::tableturf::card::InkSpace;
+use crate::tableturf::input::{Input, Placement, ValidInput};
+use crate::tableturf::player::{Player, PlayerNum};
+use std::cmp::Ordering;
 
 enum Outcome {
     P1Win,
@@ -50,7 +50,9 @@ impl GameState {
             let overlap_resolved = match priority1.cmp(&priority2) {
                 Ordering::Greater => resolve_overlap(
                     overlap,
-                    BoardSpace::Ink { player_num: PlayerNum::P2 },
+                    BoardSpace::Ink {
+                        player_num: PlayerNum::P2,
+                    },
                     BoardSpace::Special {
                         player_num: PlayerNum::P2,
                         is_activated: false,
@@ -58,7 +60,9 @@ impl GameState {
                 ),
                 Ordering::Less => resolve_overlap(
                     overlap,
-                    BoardSpace::Ink { player_num: PlayerNum::P1 },
+                    BoardSpace::Ink {
+                        player_num: PlayerNum::P1,
+                    },
                     BoardSpace::Special {
                         player_num: PlayerNum::P1,
                         is_activated: false,
@@ -68,12 +72,16 @@ impl GameState {
             };
             // No need to try to find parts that don't overlap as long as
             // we set the overlapping ink last
-            self.board.set_ink(placement1.into_board_spaces(PlayerNum::P1));
-            self.board.set_ink(placement2.into_board_spaces(PlayerNum::P2));
+            self.board
+                .set_ink(placement1.into_board_spaces(PlayerNum::P1));
+            self.board
+                .set_ink(placement2.into_board_spaces(PlayerNum::P2));
             self.board.set_ink(overlap_resolved);
         } else {
-            self.board.set_ink(placement1.into_board_spaces(PlayerNum::P1));
-            self.board.set_ink(placement2.into_board_spaces(PlayerNum::P2));
+            self.board
+                .set_ink(placement1.into_board_spaces(PlayerNum::P1));
+            self.board
+                .set_ink(placement2.into_board_spaces(PlayerNum::P2));
         }
     }
 
@@ -188,10 +196,10 @@ fn main_logic() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tableturf::board::{self, Board, BoardPosition};
+    use crate::tableturf::card::{Card, CardSpace, CardState};
     use crate::tableturf::deck::{Deck, DeckIndex};
     use crate::tableturf::hand::{Hand, HandIndex};
-    use crate::tableturf::card::{Card, CardSpace, CardState};
-    use crate::tableturf::board::{self, Board, BoardPosition};
 
     fn board_pos(board: &Board, x: i32, y: i32) -> BoardPosition {
         BoardPosition::new(board, x, y).unwrap()
@@ -477,8 +485,12 @@ mod tests {
 
     #[test]
     fn test_count_inked_spaces() {
-        let p1_ink = BoardSpace::Ink { player_num: PlayerNum::P1 };
-        let p2_ink = BoardSpace::Ink { player_num: PlayerNum::P2 };
+        let p1_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P1,
+        };
+        let p2_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P2,
+        };
         let p1_special = BoardSpace::Special {
             player_num: PlayerNum::P1,
             is_activated: false,
@@ -502,8 +514,12 @@ mod tests {
 
     #[test]
     fn test_surrounding_spaces() {
-        let p1_ink = BoardSpace::Ink { player_num: PlayerNum::P1 };
-        let p2_ink = BoardSpace::Ink { player_num: PlayerNum::P2 };
+        let p1_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P1,
+        };
+        let p2_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P2,
+        };
         let p1_special = BoardSpace::Special {
             player_num: PlayerNum::P1,
             is_activated: false,
@@ -543,8 +559,12 @@ mod tests {
 
     #[test]
     fn test_place() {
-        let p1_ink = BoardSpace::Ink { player_num: PlayerNum::P1 };
-        let p2_ink = BoardSpace::Ink { player_num: PlayerNum::P2 };
+        let p1_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P1,
+        };
+        let p2_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P2,
+        };
         let p1_special = BoardSpace::Special {
             player_num: PlayerNum::P1,
             is_activated: false,
@@ -567,7 +587,7 @@ mod tests {
                 DeckIndex::new(0).unwrap(),
                 DeckIndex::new(1).unwrap(),
                 DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap()
+                DeckIndex::new(3).unwrap(),
             ]),
             deck: default_deck(),
             special: 0,
@@ -579,7 +599,7 @@ mod tests {
                 DeckIndex::new(11).unwrap(),
                 DeckIndex::new(12).unwrap(),
                 DeckIndex::new(13).unwrap(),
-                DeckIndex::new(14).unwrap()
+                DeckIndex::new(14).unwrap(),
             ]),
             deck: default_deck(),
             special: 0,
@@ -633,7 +653,7 @@ mod tests {
                 DeckIndex::new(0).unwrap(),
                 DeckIndex::new(1).unwrap(),
                 DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap()
+                DeckIndex::new(3).unwrap(),
             ]),
             deck: default_deck(),
             special: 0,
@@ -645,7 +665,7 @@ mod tests {
                 DeckIndex::new(0).unwrap(),
                 DeckIndex::new(1).unwrap(),
                 DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap()
+                DeckIndex::new(3).unwrap(),
             ]),
             deck: default_deck(),
             special: 0,
@@ -673,7 +693,7 @@ mod tests {
                 DeckIndex::new(0).unwrap(),
                 DeckIndex::new(1).unwrap(),
                 DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap()
+                DeckIndex::new(3).unwrap(),
             ]),
             deck: default_deck(),
             special: 0,
@@ -685,7 +705,7 @@ mod tests {
                 DeckIndex::new(13).unwrap(),
                 DeckIndex::new(1).unwrap(),
                 DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap()
+                DeckIndex::new(3).unwrap(),
             ]),
             deck: default_deck(),
             special: 0,
@@ -701,8 +721,12 @@ mod tests {
 
     #[test]
     fn test_place_both() {
-        let p1_ink = BoardSpace::Ink { player_num: PlayerNum::P1 };
-        let p2_ink = BoardSpace::Ink { player_num: PlayerNum::P2 };
+        let p1_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P1,
+        };
+        let p2_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P2,
+        };
         let p1_special = BoardSpace::Special {
             player_num: PlayerNum::P1,
             is_activated: false,
@@ -803,7 +827,11 @@ mod tests {
         ]);
         let overlap = vec![
             (board_pos(&board, 0, 0), InkSpace::Normal, InkSpace::Normal),
-            (board_pos(&board, 1, 0), InkSpace::Special, InkSpace::Special),
+            (
+                board_pos(&board, 1, 0),
+                InkSpace::Special,
+                InkSpace::Special,
+            ),
             (board_pos(&board, 2, 0), InkSpace::Special, InkSpace::Normal),
             (board_pos(&board, 0, 1), InkSpace::Normal, InkSpace::Special),
         ];
@@ -811,13 +839,15 @@ mod tests {
         let expected = vec![
             (board_pos(&board, 0, 0), BoardSpace::Wall),
             (board_pos(&board, 1, 0), BoardSpace::Wall),
-            (board_pos(&board, 2, 0),
+            (
+                board_pos(&board, 2, 0),
                 BoardSpace::Special {
                     player_num: PlayerNum::P1,
                     is_activated: false,
                 },
             ),
-            (board_pos(&board, 0, 1),
+            (
+                board_pos(&board, 0, 1),
                 BoardSpace::Special {
                     player_num: PlayerNum::P2,
                     is_activated: false,

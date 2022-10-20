@@ -6,4 +6,3 @@ pub struct GameState {
     pub players: [Player; 2],
     pub turns_left: u32,
 }
-

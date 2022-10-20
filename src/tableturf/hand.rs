@@ -1,6 +1,6 @@
 use crate::tableturf::deck::DeckIndex;
 
-pub use self::hand_idx::{HAND_SIZE, HandIndex};
+pub use self::hand_idx::{HandIndex, HAND_SIZE};
 
 pub struct Hand(pub [DeckIndex; HAND_SIZE]);
 

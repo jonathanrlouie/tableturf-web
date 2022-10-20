@@ -123,8 +123,7 @@ impl Board {
                     .enumerate()
                     .filter(move |(x, s)| {
                         let board_pos = BoardPosition::new(self, *x as i32, y as i32).unwrap();
-                        s.is_inactive_special(player_num)
-                            && is_surrounded(board_pos, self)
+                        s.is_inactive_special(player_num) && is_surrounded(board_pos, self)
                     })
                     .map(move |(x, s)| (x, y, *s))
             })
@@ -137,4 +136,3 @@ impl Board {
         }
     }
 }
-

@@ -1,6 +1,6 @@
-use rand::thread_rng;
+pub use self::deck_idx::{DeckIndex, DECK_SIZE};
 use rand::prelude::IteratorRandom;
-pub use self::deck_idx::{DECK_SIZE, DeckIndex};
+use rand::thread_rng;
 
 use crate::tableturf::card::CardState;
 
@@ -18,7 +18,8 @@ impl Deck {
     // TODO: Pass in the RNG for easier testing
     pub fn draw_card(&mut self) -> Option<DeckIndex> {
         let mut rng = thread_rng();
-        let (idx, _) = self.0
+        let (idx, _) = self
+            .0
             .iter()
             .filter(|cs| cs.is_available)
             .enumerate()

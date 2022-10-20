@@ -1,8 +1,8 @@
+use crate::tableturf::board::{self, Board, BoardPosition, BoardSpace};
+use crate::tableturf::card::{Card, Grid, InkSpace, ROW_LEN};
 use crate::tableturf::game_state::GameState;
 use crate::tableturf::hand::HandIndex;
 use crate::tableturf::player::PlayerNum;
-use crate::tableturf::card::{Card, Grid, InkSpace, ROW_LEN};
-use crate::tableturf::board::{self, BoardPosition, BoardSpace, Board};
 
 // A card can be rotated in one of 4 different ways
 #[derive(Copy, Clone)]
@@ -125,7 +125,13 @@ fn invalid_special_placement(
     not_enough_special || special_collision(ink_spaces, &game_state.board)
 }
 
-fn get_absolute_position(board: &Board, x: usize, y: usize, board_x: i32, board_y: i32) -> Option<BoardPosition> {
+fn get_absolute_position(
+    board: &Board,
+    x: usize,
+    y: usize,
+    board_x: i32,
+    board_y: i32,
+) -> Option<BoardPosition> {
     let x: i32 = x.try_into().ok()?;
     let x = i32::checked_add(board_x, x)?;
     let y: i32 = y.try_into().ok()?;
