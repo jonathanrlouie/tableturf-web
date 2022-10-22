@@ -178,3 +178,108 @@ impl Board {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_construct_board() {
+        let no_rows = Board::new(vec![]);
+        assert!(no_rows.is_none());
+
+        let empty_row = Board::new(vec![vec![]]);
+        assert!(empty_row.is_none());
+
+        let wall = BoardSpace::Wall;
+        let empty = BoardSpace::Empty;
+        let uneven_rows = Board::new(vec![vec![wall], vec![wall, wall]]);
+        assert!(uneven_rows.is_none());
+
+        let too_wide_board = Board::new(vec![vec![
+            wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            wall, wall, wall, wall, wall, wall
+        ]]);
+        assert!(too_wide_board.is_none());
+
+        let too_tall_board = Board::new(vec![
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+            vec![wall],
+        ]);
+        assert!(too_tall_board.is_none());
+
+        let min_valid_board = Board::new(vec![vec![wall]]);
+        assert!(min_valid_board.is_some());
+
+        let valid_board = Board::new(vec![vec![wall, wall], vec![wall, empty]]);
+        assert!(valid_board.is_some());
+
+        let max_valid_board = Board::new(vec![
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+        ]);
+        assert!(max_valid_board.is_some());
+    }
+
+    #[test]
+    fn test_construct_board_position() {
+        let empty = BoardSpace::Empty;
+        let board = Board::new(vec![vec![empty, empty], vec![empty, empty]]).unwrap();
+        let outside_row = BoardPosition::new(&board, 2, 0);
+        assert!(outside_row.is_none());
+        let outside_col = BoardPosition::new(&board, 0, 2);
+        assert!(outside_col.is_none());
+        let outside_row_and_col = BoardPosition::new(&board, 2, 2);
+        assert!(outside_row_and_col.is_none());
+        let valid_pos = BoardPosition::new(&board, 1, 1);
+        assert!(valid_pos.is_some());
+    }
+}
