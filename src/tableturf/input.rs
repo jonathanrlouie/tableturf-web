@@ -100,9 +100,12 @@ fn placement_adjacent_to_special(
 
 // Test if an entire placement of ink overlaps ink or walls
 fn placement_collision(inked_spaces: &[(BoardPosition, InkSpace)], board: &Board) -> bool {
-    inked_spaces
-        .iter()
-        .any(|(bp, _)| !matches!(board.get_space(bp.x() as i32, bp.y() as i32), BoardSpace::Empty))
+    inked_spaces.iter().any(|(bp, _)| {
+        !matches!(
+            board.get_space(bp.x() as i32, bp.y() as i32),
+            BoardSpace::Empty
+        )
+    })
 }
 
 // Test if an entire special placement of ink overlaps any special spaces or walls
