@@ -21,7 +21,6 @@ pub struct Player {
     pub hand: Hand,
     pub deck: Deck,
     pub special: u32,
-    pub num: PlayerNum,
 }
 
 impl Player {

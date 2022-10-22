@@ -159,22 +159,22 @@ fn update_game_state(game_state: &mut GameState, input1: ValidInput, input2: Val
     };
     let player1 = &mut game_state.players[0];
     player1.replace_card(hand_idx1);
-    update_special_gauge(player1, &mut game_state.board);
+    update_special_gauge(player1, PlayerNum::P1, &mut game_state.board);
     let player2 = &mut game_state.players[1];
     player2.replace_card(hand_idx2);
-    update_special_gauge(player2, &mut game_state.board);
+    update_special_gauge(player2, PlayerNum::P2, &mut game_state.board);
 
     if game_state.turns_left > 0 {
         game_state.turns_left -= 1;
     }
 }
 
-fn update_special_gauge(player: &mut Player, board: &mut Board) {
-    let special_spaces = board.get_surrounded_inactive_specials(player.num);
+fn update_special_gauge(player: &mut Player, player_num: PlayerNum, board: &mut Board) {
+    let special_spaces = board.get_surrounded_inactive_specials(player_num);
     // activate surrounded special spaces
     for (x, y, _) in &special_spaces {
         board.get_mut()[*y][*x] = BoardSpace::Special {
-            player_num: player.num,
+            player_num,
             is_activated: true,
         }
     }
@@ -591,7 +591,6 @@ mod tests {
             ]),
             deck: default_deck(),
             special: 0,
-            num: PlayerNum::P1,
         };
 
         let player2 = Player {
@@ -603,7 +602,6 @@ mod tests {
             ]),
             deck: default_deck(),
             special: 0,
-            num: PlayerNum::P2,
         };
 
         let mut game_state = GameState {
@@ -657,7 +655,6 @@ mod tests {
             ]),
             deck: default_deck(),
             special: 0,
-            num: PlayerNum::P1,
         };
 
         let player2 = Player {
@@ -669,7 +666,6 @@ mod tests {
             ]),
             deck: default_deck(),
             special: 0,
-            num: PlayerNum::P2,
         };
 
         GameState {
@@ -697,7 +693,6 @@ mod tests {
             ]),
             deck: default_deck(),
             special: 0,
-            num: PlayerNum::P1,
         };
 
         let player2 = Player {
@@ -709,7 +704,6 @@ mod tests {
             ]),
             deck: default_deck(),
             special: 0,
-            num: PlayerNum::P2,
         };
 
         GameState {
