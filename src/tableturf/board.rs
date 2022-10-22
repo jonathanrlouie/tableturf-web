@@ -111,21 +111,21 @@ impl Board {
     // - board contains at least one row
     // - rows contain at least one space
     pub fn new(spaces: Vec<Vec<BoardSpace>>) -> Option<Self> {
-        if (spaces.is_empty()) {
+        if spaces.is_empty() {
             return None;
         }
-        if (spaces.len() > MAX_BOARD_HEIGHT) {
+        if spaces.len() > MAX_BOARD_HEIGHT {
             return None;
         }
         let row = spaces.get(0)?;
-        if (row.is_empty()) {
+        if row.is_empty() {
             return None;
         }
         let row_len = row.len();
-        if (row_len > MAX_BOARD_WIDTH) {
+        if row_len > MAX_BOARD_WIDTH {
             return None;
         }
-        if (spaces.iter().any(|row| row.len() != row_len)) {
+        if spaces.iter().any(|row| row.len() != row_len) {
             return None;
         }
         Some(Board(spaces))

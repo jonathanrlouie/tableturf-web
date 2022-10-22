@@ -201,7 +201,7 @@ mod tests {
     use crate::tableturf::deck::{Deck, DeckIndex};
     use crate::tableturf::hand::{Hand, HandIndex};
 
-    fn board_pos(board: &Board, x: i32, y: i32) -> BoardPosition {
+    fn board_pos(board: &Board, x: usize, y: usize) -> BoardPosition {
         BoardPosition::new(board, x, y).unwrap()
     }
 
@@ -501,11 +501,11 @@ mod tests {
         };
         let empty = BoardSpace::Empty;
         let wall = BoardSpace::Wall;
-        let board = Board(vec![
+        let board = Board::new(vec![
             vec![empty, p1_ink, p2_ink],
             vec![empty, wall, p1_special],
             vec![p2_special, empty, p1_ink],
-        ]);
+        ]).unwrap();
         let player1_ink_total = count_inked_spaces(&board, PlayerNum::P1);
         let player2_ink_total = count_inked_spaces(&board, PlayerNum::P2);
         assert_eq!(player1_ink_total, 3);
@@ -531,11 +531,11 @@ mod tests {
         let empty = BoardSpace::Empty;
         let wall = BoardSpace::Wall;
         let oob = BoardSpace::OutOfBounds;
-        let board = Board(vec![
+        let board = Board::new(vec![
             vec![empty, p1_ink, p2_ink],
             vec![empty, wall, p1_special],
             vec![p2_special, empty, p1_ink],
-        ]);
+        ]).unwrap();
         let spaces = board::surrounding_spaces(board_pos(&board, 1, 1), &board);
         assert_eq!(spaces[0], empty);
         assert_eq!(spaces[1], p1_ink);
@@ -575,12 +575,12 @@ mod tests {
         };
         let empty = BoardSpace::Empty;
         let wall = BoardSpace::Wall;
-        let board = Board(vec![
+        let board = Board::new(vec![
             vec![empty, empty, empty, empty],
             vec![empty, empty, empty, empty],
             vec![empty, empty, empty, empty],
             vec![empty, empty, empty, empty],
-        ]);
+        ]).unwrap();
 
         let player1 = Player {
             hand: Hand([
@@ -630,23 +630,23 @@ mod tests {
             PlayerNum::P1,
         );
 
-        let expected_board = Board(vec![
+        let expected_board = Board::new(vec![
             vec![p1_ink, p1_ink, p1_special, empty],
             vec![p1_ink, p1_ink, p1_ink, p1_ink],
             vec![p1_ink, empty, empty, empty],
             vec![empty, empty, empty, empty],
-        ]);
+        ]).unwrap();
         assert_eq!(game_state.board, expected_board);
     }
 
     fn game_state1() -> GameState {
         let empty = BoardSpace::Empty;
-        let board = Board(vec![
+        let board = Board::new(vec![
             vec![empty, empty, empty, empty],
             vec![empty, empty, empty, empty],
             vec![empty, empty, empty, empty],
             vec![empty, empty, empty, empty],
-        ]);
+        ]).unwrap();
 
         let player1 = Player {
             hand: Hand([
@@ -681,12 +681,12 @@ mod tests {
 
     fn game_state2() -> GameState {
         let empty = BoardSpace::Empty;
-        let board = Board(vec![
+        let board = Board::new(vec![
             vec![empty, empty, empty, empty],
             vec![empty, empty, empty, empty],
             vec![empty, empty, empty, empty],
             vec![empty, empty, empty, empty],
-        ]);
+        ]).unwrap();
 
         let player1 = Player {
             hand: Hand([
@@ -772,12 +772,12 @@ mod tests {
             },
         );
 
-        let expected_board1 = Board(vec![
+        let expected_board1 = Board::new(vec![
             vec![wall, wall, wall, empty],
             vec![wall, wall, wall, wall],
             vec![wall, empty, empty, empty],
             vec![empty, empty, empty, empty],
-        ]);
+        ]).unwrap();
         assert_eq!(game_state1.board, expected_board1);
 
         let mut game_state2 = game_state2();
@@ -807,24 +807,24 @@ mod tests {
             },
         );
 
-        let expected_board2 = Board(vec![
+        let expected_board2 = Board::new(vec![
             vec![p1_ink, p1_ink, p2_special, empty],
             vec![p1_ink, p2_ink, p2_ink, p1_ink],
             vec![p1_ink, empty, empty, empty],
             vec![empty, empty, empty, empty],
-        ]);
+        ]).unwrap();
         assert_eq!(game_state2.board, expected_board2);
     }
 
     #[test]
     fn test_resolve_overlap() {
         let empty = BoardSpace::Empty;
-        let board = Board(vec![
+        let board = Board::new(vec![
             vec![empty, empty, empty, empty],
             vec![empty, empty, empty, empty],
             vec![empty, empty, empty, empty],
             vec![empty, empty, empty, empty],
-        ]);
+        ]).unwrap();
         let overlap = vec![
             (board_pos(&board, 0, 0), InkSpace::Normal, InkSpace::Normal),
             (
