@@ -2,9 +2,22 @@ use crate::tableturf::board::{Board, BoardPosition, BoardSpace};
 use crate::tableturf::card::InkSpace;
 use crate::tableturf::game_state::GameState;
 use crate::tableturf::hand::HandIndex;
+use crate::tableturf::deck::DrawRng;
 use crate::tableturf::input::{Input, Placement, ValidInput};
 use crate::tableturf::player::{Player, PlayerNum};
 use std::cmp::Ordering;
+use rand::rngs::ThreadRng;
+use rand::prelude::IteratorRandom;
+
+struct DeckRng {
+    rng: ThreadRng
+}
+
+impl DrawRng for DeckRng {
+    fn draw<T, I: Iterator<Item=T> + Sized>(&mut self, iter: I) -> Option<T> {
+        iter.choose(&mut self.rng)
+    }
+}
 
 enum Outcome {
     P1Win,
@@ -137,7 +150,7 @@ fn resolve_overlap(
 
 // input1: player 1's input
 // input2: player 2's input
-fn update_game_state(game_state: &mut GameState, input1: ValidInput, input2: ValidInput) {
+fn update_game_state<R: DrawRng>(game_state: &mut GameState, rng: &mut R, input1: ValidInput, input2: ValidInput) {
     let hand_idx1 = input1.hand_idx();
     let hand_idx2 = input2.hand_idx();
     match (input1.get(), input2.get()) {
@@ -158,10 +171,10 @@ fn update_game_state(game_state: &mut GameState, input1: ValidInput, input2: Val
         }
     };
     let player1 = &mut game_state.players[0];
-    player1.replace_card(hand_idx1);
+    player1.replace_card(hand_idx1, rng);
     update_special_gauge(player1, PlayerNum::P1, &mut game_state.board);
     let player2 = &mut game_state.players[1];
-    player2.replace_card(hand_idx2);
+    player2.replace_card(hand_idx2, rng);
     update_special_gauge(player2, PlayerNum::P2, &mut game_state.board);
 
     if game_state.turns_left > 0 {

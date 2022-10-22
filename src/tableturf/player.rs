@@ -1,4 +1,4 @@
-use crate::tableturf::deck::{Deck, DeckIndex};
+use crate::tableturf::deck::{DrawRng, Deck, DeckIndex};
 use crate::tableturf::hand::{Hand, HandIndex};
 use crate::tableturf::input::Placement;
 
@@ -24,10 +24,10 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn replace_card(&mut self, idx: HandIndex) {
+    pub fn replace_card<R: DrawRng>(&mut self, idx: HandIndex, rng: &mut R) {
         self.discard_card(idx);
         // Don't replace the card if we're out of cards, since the game is over anyway.
-        if let Some(deck_idx) = self.draw_card() {
+        if let Some(deck_idx) = self.deck.draw_card(rng) {
             self.hand.set_deck_idx(idx, deck_idx);
         }
     }
@@ -35,11 +35,6 @@ impl Player {
     fn discard_card(&mut self, idx: HandIndex) {
         let discarded_card_idx = self.hand.get(idx);
         self.deck.get(discarded_card_idx).is_available = false;
-    }
-
-    // TODO: Pass in the RNG for easier testing
-    fn draw_card(&mut self) -> Option<DeckIndex> {
-        self.deck.draw_card()
     }
 
     pub fn spend_special(&mut self, placement: &Placement, hand_idx: HandIndex) {
