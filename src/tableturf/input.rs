@@ -102,13 +102,13 @@ fn placement_adjacent_to_special(
 fn placement_collision(inked_spaces: &[(BoardPosition, InkSpace)], board: &Board) -> bool {
     inked_spaces
         .iter()
-        .any(|(bp, _)| !matches!(board.get_space(bp.x(), bp.y()), BoardSpace::Empty))
+        .any(|(bp, _)| !matches!(board.get_space(bp.x() as i32, bp.y() as i32), BoardSpace::Empty))
 }
 
 // Test if an entire special placement of ink overlaps any special spaces or walls
 fn special_collision(inked_spaces: &[(BoardPosition, InkSpace)], board: &Board) -> bool {
     inked_spaces.iter().any(|(bp, _)| {
-        let board_space = board.get_space(bp.x(), bp.y());
+        let board_space = board.get_space(bp.x() as i32, bp.y() as i32);
         matches!(board_space, BoardSpace::Special { .. })
             || matches!(board_space, BoardSpace::Wall)
             || matches!(board_space, BoardSpace::OutOfBounds)
@@ -133,9 +133,11 @@ fn get_absolute_position(
     board_y: i32,
 ) -> Option<BoardPosition> {
     let x: i32 = x.try_into().ok()?;
-    let x = i32::checked_add(board_x, x)?;
     let y: i32 = y.try_into().ok()?;
+    let x = i32::checked_add(board_x, x)?;
     let y = i32::checked_add(board_y, y)?;
+    let x: usize = x.try_into().ok()?;
+    let y: usize = y.try_into().ok()?;
     BoardPosition::new(board, x, y)
 }
 

@@ -50,8 +50,8 @@ fn is_surrounded(board_pos: BoardPosition, board: &Board) -> bool {
 
 // Get the spaces surrounding the given position
 pub fn surrounding_spaces(board_pos: BoardPosition, board: &Board) -> [BoardSpace; 8] {
-    let x = board_pos.x();
-    let y = board_pos.y();
+    let x = board_pos.x() as i32;
+    let y = board_pos.y() as i32;
     let nw_space = board.get_space(x - 1, y - 1);
     let n_space = board.get_space(x, y - 1);
     let ne_space = board.get_space(x + 1, y - 1);
@@ -67,36 +67,78 @@ pub fn surrounding_spaces(board_pos: BoardPosition, board: &Board) -> [BoardSpac
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub struct BoardPosition(i32, i32);
+pub struct BoardPosition(usize, usize);
 
 impl BoardPosition {
-    pub fn new(board: &Board, x: i32, y: i32) -> Option<Self> {
-        if board.0.is_empty() {
+    // Ensure that the given position meets the following criteria:
+    // - x coordinate does not exceed Board row length
+    // - y coordinate does not exceed Board column height
+    // - x and y coordinates can be converted into i32s safely
+    pub fn new(board: &Board, x: usize, y: usize) -> Option<Self> {
+        if x >= board.get()[0].len() {
             return None;
         }
-        if x < 0 || x >= board.0[0].len().try_into().unwrap() {
+        if y >= board.get().len() {
             return None;
         }
-        if y < 0 || y >= board.0.len().try_into().unwrap() {
-            return None;
-        }
+        // Ensure that x and y can be safely converted into i32s later
+        let _: i32 = x.try_into().ok()?;
+        let _: i32 = y.try_into().ok()?;
         Some(BoardPosition(x, y))
     }
 
-    pub fn x(&self) -> i32 {
+    pub fn x(&self) -> usize {
         self.0
     }
 
-    pub fn y(&self) -> i32 {
+    pub fn y(&self) -> usize {
         self.1
     }
 }
 
+pub const MAX_BOARD_WIDTH: usize = 25;
+pub const MAX_BOARD_HEIGHT: usize = 25;
+
 // This cannot be an array, because custom boards might be loaded at runtime
 #[derive(Debug, PartialEq)]
-pub struct Board(pub Vec<Vec<BoardSpace>>);
+pub struct Board(Vec<Vec<BoardSpace>>);
 
 impl Board {
+    // Ensure that the given board meets the following criteria:
+    // - all rows are the same length
+    // - row length does not exceed the max board width
+    // - column height does not exceed the max board height
+    // - board contains at least one row
+    // - rows contain at least one space
+    pub fn new(spaces: Vec<Vec<BoardSpace>>) -> Option<Self> {
+        if (spaces.is_empty()) {
+            return None;
+        }
+        if (spaces.len() > MAX_BOARD_HEIGHT) {
+            return None;
+        }
+        let row = spaces.get(0)?;
+        if (row.is_empty()) {
+            return None;
+        }
+        let row_len = row.len();
+        if (row_len > MAX_BOARD_WIDTH) {
+            return None;
+        }
+        if (spaces.iter().any(|row| row.len() != row_len)) {
+            return None;
+        }
+        Some(Board(spaces))
+    }
+
+    pub fn get(&self) -> &Vec<Vec<BoardSpace>> {
+        &self.0
+    }
+
+    pub fn get_mut(&mut self) -> &mut Vec<Vec<BoardSpace>> {
+        &mut self.0
+    }
+
     // Need to take signed integers because we may need to check out-of-bounds
     pub fn get_space(&self, x: i32, y: i32) -> BoardSpace {
         self.try_get_space(x, y).unwrap_or(BoardSpace::OutOfBounds)
@@ -122,7 +164,7 @@ impl Board {
                 r.iter()
                     .enumerate()
                     .filter(move |(x, s)| {
-                        let board_pos = BoardPosition::new(self, *x as i32, y as i32).unwrap();
+                        let board_pos = BoardPosition::new(self, *x, y).unwrap();
                         s.is_inactive_special(player_num) && is_surrounded(board_pos, self)
                     })
                     .map(move |(x, s)| (x, y, *s))

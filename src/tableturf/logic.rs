@@ -98,7 +98,7 @@ impl GameState {
 }
 
 fn count_inked_spaces(board: &Board, player_num: PlayerNum) -> u32 {
-    board.0.iter().fold(0, |acc, row| {
+    board.get().iter().fold(0, |acc, row| {
         acc + row
             .iter()
             .filter(|s| s.is_ink(player_num))
@@ -173,7 +173,7 @@ fn update_special_gauge(player: &mut Player, board: &mut Board) {
     let special_spaces = board.get_surrounded_inactive_specials(player.num);
     // activate surrounded special spaces
     for (x, y, _) in &special_spaces {
-        board.0[*y][*x] = BoardSpace::Special {
+        board.get_mut()[*y][*x] = BoardSpace::Special {
             player_num: player.num,
             is_activated: true,
         }
