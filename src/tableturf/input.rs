@@ -1,10 +1,10 @@
 use crate::tableturf::board::{self, Board, BoardPosition, BoardSpace};
 use crate::tableturf::card::{Card, Grid, InkSpace, ROW_LEN};
-use crate::tableturf::game_state::GameState;
 use crate::tableturf::hand::HandIndex;
-use crate::tableturf::player::PlayerNum;
+use crate::tableturf::player::{Player, PlayerNum};
 
-// A card can be rotated in one of 4 different ways
+
+// Represents the number of counter-clockwise rotations applied to a Card
 #[derive(Copy, Clone)]
 pub enum Rotation {
     Zero,
@@ -75,17 +75,16 @@ impl ValidInput {
     // - card availability
     // - card index in hand
     // - special availability
-    pub fn new(input: RawInput, game_state: &GameState, player_num: PlayerNum) -> Option<Self> {
+    pub fn new(input: RawInput, board: &Board, player: &Player, player_num: PlayerNum) -> Option<Self> {
         // Ensure given index is within the range of 0..4
         let hand_idx = HandIndex::new(input.hand_idx)?;
 
         // Validate that the user's selected card is available
-        let player = &game_state.players[player_num.idx()];
         let selected_card_state = player.deck().get(player.hand().get(hand_idx));
         if !selected_card_state.is_available {
             return None;
         }
-        let selected_card = selected_card_state.card;
+        let selected_card = selected_card_state.card();
 
         match input.action {
             Action::Pass => Some(Self {
@@ -108,7 +107,7 @@ impl ValidInput {
                             .filter_map(move |(x, cell)| cell.map(|s| (x, y, s)))
                     })
                     .map(|(x, y, s)| {
-                        get_absolute_position(&game_state.board, x, y, board_x, board_y)
+                        get_absolute_position(board, x, y, board_x, board_y)
                             .map(|bp| (bp, s))
                     })
                     .collect::<Option<Vec<(BoardPosition, InkSpace)>>>()?;
@@ -118,7 +117,8 @@ impl ValidInput {
                     // overlapping any walls or special spaces.
                     if invalid_special_placement(
                         &selected_card,
-                        game_state,
+                        board,
+                        player,
                         &ink_spaces[..],
                         player_num,
                     ) {
@@ -128,19 +128,19 @@ impl ValidInput {
                     // Check that ink placement is adjacent to one of the player's special spaces
                     if !placement_adjacent_to_special(
                         &ink_spaces[..],
-                        &game_state.board,
+                        board,
                         player_num,
                     ) {
                         return None;
                     }
                 // Check that ink placement is over empty squares
                 } else {
-                    if placement_collision(&ink_spaces[..], &game_state.board) {
+                    if placement_collision(&ink_spaces[..], board) {
                         return None;
                     }
 
                     // Check that ink placement is adjacent to player's ink
-                    if !placement_adjacent_to_ink(&ink_spaces[..], &game_state.board, player_num) {
+                    if !placement_adjacent_to_ink(&ink_spaces[..], board, player_num) {
                         return None;
                     }
                 }
@@ -223,12 +223,13 @@ fn special_collision(inked_spaces: &[(BoardPosition, InkSpace)], board: &Board) 
 
 fn invalid_special_placement(
     selected_card: &Card,
-    game_state: &GameState,
+    board: &Board,
+    player: &Player,
     ink_spaces: &[(BoardPosition, InkSpace)],
     player_num: PlayerNum,
 ) -> bool {
-    let not_enough_special = game_state.players[player_num.idx()].special < selected_card.special;
-    not_enough_special || special_collision(ink_spaces, &game_state.board)
+    let not_enough_special = player.special < selected_card.special();
+    not_enough_special || special_collision(ink_spaces, board)
 }
 
 fn get_absolute_position(
@@ -260,7 +261,7 @@ fn rotate_grid_ccw(grid: &mut Grid) {
 }
 
 fn rotate_input(card: &Card, rotation: Rotation) -> Grid {
-    let mut grid = card.spaces;
+    let mut grid = card.spaces();
     match rotation {
         Rotation::Zero => (),
         Rotation::One => {
@@ -282,7 +283,37 @@ fn rotate_input(card: &Card, rotation: Rotation) -> Grid {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tableturf::card::{InkSpace, CardSpace, Card};
 
     #[test]
-    fn test_add() {}
+    fn test_rotate_input() {
+        let e: CardSpace = None;
+        let i: CardSpace = Some(InkSpace::Normal);
+        let s: CardSpace = Some(InkSpace::Special);
+        let splattershot = Card::new(
+            8,
+            [
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, i, i, s, e, e, e],
+                [e, e, i, i, i, i, e, e],
+                [e, e, i, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+            ],
+            3,
+        );
+        let zero = rotate_input(&splattershot, Rotation::Zero);
+        assert_eq!(zero, [
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+            [e, e, i, i, s, e, e, e],
+            [e, e, i, i, i, i, e, e],
+            [e, e, i, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+        ]);
+    }
 }

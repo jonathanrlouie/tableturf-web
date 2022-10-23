@@ -1,4 +1,4 @@
-use crate::tableturf::deck::{DrawRng, Deck, DeckIndex};
+use crate::tableturf::deck::{DrawRng, Deck};
 use crate::tableturf::hand::{Hand, HandIndex};
 use crate::tableturf::input::Placement;
 
@@ -48,14 +48,14 @@ impl Player {
         self.hand
     }
 
-    pub fn deck(&self) -> Deck {
-        self.deck
+    pub fn deck(&self) -> &Deck {
+        &self.deck
     }
 
     pub fn replace_card<R: DrawRng>(&mut self, idx: HandIndex, rng: &mut R) {
         // Don't replace the card if we're out of cards, since the game is over anyway.
         if let Some(deck_idx) = self.deck.draw_card(rng) {
-            self.deck.get(deck_idx).is_available = false;
+            self.deck.set_unavailable(deck_idx);
             self.hand.set_deck_idx(idx, deck_idx);
         }
     }
@@ -63,7 +63,7 @@ impl Player {
     pub fn spend_special(&mut self, placement: &Placement, hand_idx: HandIndex) {
         if placement.is_special_activated() {
             let selected_card = self.deck.get(self.hand.get(hand_idx));
-            self.special -= selected_card.card.special;
+            self.special -= selected_card.special();
         }
     }
 }
@@ -72,7 +72,7 @@ impl Player {
 mod tests {
     use super::*;
     use crate::tableturf::card::{Card, CardState};
-    use crate::tableturf::deck::DrawRng;
+    use crate::tableturf::deck::{DeckIndex, DrawRng};
 
     struct MockRng;
 
@@ -95,20 +95,20 @@ mod tests {
             [empty, empty, empty, empty, empty, empty, empty, empty],
             [empty, empty, empty, empty, empty, empty, empty, empty],
         ];
-        let card = Card {
-            priority: 0,
+        let card = Card::new(
+            0,
             spaces,
-            special: 0
-        };
-        let available_card = CardState {
+            0
+        );
+        let available_card = CardState::new(
             card,
-            is_available: true
-        };
-        let unavailable_card = CardState {
+            true
+        );
+        let unavailable_card = CardState::new(
             card,
-            is_available: false
-        };
-        let mut deck = Deck([
+            false
+        );
+        let deck = Deck::new([
             unavailable_card,
             unavailable_card,
             unavailable_card,
@@ -138,5 +138,6 @@ mod tests {
         player.replace_card(HandIndex::new(0).unwrap(), &mut MockRng);
         let deck_idx = player.hand.get(HandIndex::new(0).unwrap());
         assert_eq!(deck_idx.get(), 4);
+        assert_eq!(player.deck().get(deck_idx).is_available, false);
     }
 }

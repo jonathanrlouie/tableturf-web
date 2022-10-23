@@ -7,15 +7,23 @@ pub trait DrawRng {
 }
 
 #[derive(Copy, Clone)]
-pub struct Deck(pub [CardState; DECK_SIZE]);
+pub struct Deck([CardState; DECK_SIZE]);
 
 impl Deck {
-    pub fn get(&self, idx: DeckIndex) -> CardState {
-        self.0[idx.get()]
+    pub fn new(deck: [CardState; DECK_SIZE]) -> Self {
+        Deck(deck)
+    }
+
+    pub fn get(&self, idx: DeckIndex) -> &CardState {
+        &self.0[idx.get()]
     }
 
     pub fn set_card_state(&mut self, idx: DeckIndex, card_state: CardState) {
         self.0[idx.get()] = card_state;
+    }
+
+    pub fn set_unavailable(&mut self, idx: DeckIndex) {
+        self.0[idx.get()].is_available = false;
     }
 
     pub fn draw_card<R: DrawRng>(&mut self, rng: &mut R) -> Option<DeckIndex> {
@@ -88,19 +96,19 @@ mod tests {
             [empty, empty, empty, empty, empty, empty, empty, empty],
             [empty, empty, empty, empty, empty, empty, empty, empty],
         ];
-        let card = Card {
-            priority: 0,
+        let card = Card::new(
+            0,
             spaces,
-            special: 0
-        };
-        let available_card = CardState {
+            0
+        );
+        let available_card = CardState::new(
                 card,
-                is_available: true
-            };
-        let unavailable_card = CardState {
+                true
+            );
+        let unavailable_card = CardState::new(
                 card,
-                is_available: false
-            };
+                false
+            );
         let mut deck = Deck([
             available_card,
             available_card,
