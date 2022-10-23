@@ -36,13 +36,20 @@ pub struct ValidInput {
 
 pub struct Placement {
     // Inked spaces with absolute board positions
-    pub ink_spaces: Vec<(BoardPosition, InkSpace)>,
-    pub special_activated: bool,
+    ink_spaces: Vec<(BoardPosition, InkSpace)>,
+    special_activated: bool,
 }
 
 impl Placement {
-    pub fn get_ink_spaces(self) -> Vec<(BoardPosition, InkSpace)> {
-        self.ink_spaces
+    pub fn new(ink_spaces: Vec<(BoardPosition, InkSpace)>, special_activated: bool) -> Placement {
+        Placement {
+            ink_spaces,
+            special_activated
+        }
+    }
+
+    pub fn ink_spaces(&self) -> &Vec<(BoardPosition, InkSpace)> {
+        &self.ink_spaces
     }
 
     pub fn is_special_activated(&self) -> bool {
@@ -60,6 +67,102 @@ impl Placement {
 pub enum Input {
     Pass,
     Place(Placement),
+}
+
+impl ValidInput {
+    // validates:
+    // - board position
+    // - card availability
+    // - card index in hand
+    // - special availability
+    pub fn new(input: RawInput, game_state: &GameState, player_num: PlayerNum) -> Option<Self> {
+        // Ensure given index is within the range of 0..4
+        let hand_idx = HandIndex::new(input.hand_idx)?;
+
+        // Validate that the user's selected card is available
+        let player = &game_state.players[player_num.idx()];
+        let selected_card_state = player.deck().get(player.hand().get(hand_idx));
+        if !selected_card_state.is_available {
+            return None;
+        }
+        let selected_card = selected_card_state.card;
+
+        match input.action {
+            Action::Pass => Some(Self {
+                hand_idx,
+                input: Input::Pass,
+            }),
+            Action::Place {
+                x: board_x,
+                y: board_y,
+                special_activated,
+                rotation,
+            } => {
+                let grid = rotate_input(&selected_card, rotation);
+                let ink_spaces = grid
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(y, row)| {
+                        row.iter()
+                            .enumerate()
+                            .filter_map(move |(x, cell)| cell.map(|s| (x, y, s)))
+                    })
+                    .map(|(x, y, s)| {
+                        get_absolute_position(&game_state.board, x, y, board_x, board_y)
+                            .map(|bp| (bp, s))
+                    })
+                    .collect::<Option<Vec<(BoardPosition, InkSpace)>>>()?;
+
+                if special_activated {
+                    // Check that player has enough special and that the special isn't
+                    // overlapping any walls or special spaces.
+                    if invalid_special_placement(
+                        &selected_card,
+                        game_state,
+                        &ink_spaces[..],
+                        player_num,
+                    ) {
+                        return None;
+                    }
+
+                    // Check that ink placement is adjacent to one of the player's special spaces
+                    if !placement_adjacent_to_special(
+                        &ink_spaces[..],
+                        &game_state.board,
+                        player_num,
+                    ) {
+                        return None;
+                    }
+                // Check that ink placement is over empty squares
+                } else {
+                    if placement_collision(&ink_spaces[..], &game_state.board) {
+                        return None;
+                    }
+
+                    // Check that ink placement is adjacent to player's ink
+                    if !placement_adjacent_to_ink(&ink_spaces[..], &game_state.board, player_num) {
+                        return None;
+                    }
+                }
+
+                Some(Self {
+                    hand_idx,
+                    input: Input::Place(Placement {
+                        ink_spaces,
+                        special_activated,
+                    }),
+                })
+            }
+        }
+    }
+
+    pub fn get(self) -> Input {
+        self.input
+    }
+
+    pub fn hand_idx(&self) -> HandIndex {
+        self.hand_idx
+    }
 }
 
 // Test if a single space is adjacent to a player's inked space
@@ -174,102 +277,6 @@ fn rotate_input(card: &Card, rotation: Rotation) -> Grid {
         }
     }
     grid
-}
-
-impl ValidInput {
-    // validates:
-    // - board position
-    // - card availability
-    // - card index in hand
-    // - special availability
-    pub fn new(input: RawInput, game_state: &GameState, player_num: PlayerNum) -> Option<Self> {
-        // Ensure given index is within the range of 0..4
-        let hand_idx = HandIndex::new(input.hand_idx)?;
-
-        // Validate that the user's selected card is available
-        let player = &game_state.players[player_num.idx()];
-        let selected_card_state = player.deck().get(player.hand().get(hand_idx));
-        if !selected_card_state.is_available {
-            return None;
-        }
-        let selected_card = selected_card_state.card;
-
-        match input.action {
-            Action::Pass => Some(Self {
-                hand_idx,
-                input: Input::Pass,
-            }),
-            Action::Place {
-                x: board_x,
-                y: board_y,
-                special_activated,
-                rotation,
-            } => {
-                let grid = rotate_input(&selected_card, rotation);
-                let ink_spaces = grid
-                    .iter()
-                    .enumerate()
-                    .flat_map(|(y, row)| {
-                        row.iter()
-                            .enumerate()
-                            .filter_map(move |(x, cell)| cell.map(|s| (x, y, s)))
-                    })
-                    .map(|(x, y, s)| {
-                        get_absolute_position(&game_state.board, x, y, board_x, board_y)
-                            .map(|bp| (bp, s))
-                    })
-                    .collect::<Option<Vec<(BoardPosition, InkSpace)>>>()?;
-
-                if special_activated {
-                    // Check that player has enough special and that the special isn't
-                    // overlapping any walls or special spaces.
-                    if invalid_special_placement(
-                        &selected_card,
-                        game_state,
-                        &ink_spaces[..],
-                        player_num,
-                    ) {
-                        return None;
-                    }
-
-                    // Check that ink placement is adjacent to one of the player's special spaces
-                    if !placement_adjacent_to_special(
-                        &ink_spaces[..],
-                        &game_state.board,
-                        player_num,
-                    ) {
-                        return None;
-                    }
-                // Check that ink placement is over empty squares
-                } else {
-                    if placement_collision(&ink_spaces[..], &game_state.board) {
-                        return None;
-                    }
-
-                    // Check that ink placement is adjacent to player's ink
-                    if !placement_adjacent_to_ink(&ink_spaces[..], &game_state.board, player_num) {
-                        return None;
-                    }
-                }
-
-                Some(Self {
-                    hand_idx,
-                    input: Input::Place(Placement {
-                        ink_spaces,
-                        special_activated,
-                    }),
-                })
-            }
-        }
-    }
-
-    pub fn get(self) -> Input {
-        self.input
-    }
-
-    pub fn hand_idx(&self) -> HandIndex {
-        self.hand_idx
-    }
 }
 
 #[cfg(test)]

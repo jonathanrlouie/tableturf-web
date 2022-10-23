@@ -61,7 +61,7 @@ impl Player {
     }
 
     pub fn spend_special(&mut self, placement: &Placement, hand_idx: HandIndex) {
-        if placement.special_activated {
+        if placement.is_special_activated() {
             let selected_card = self.deck.get(self.hand.get(hand_idx));
             self.special -= selected_card.card.special;
         }

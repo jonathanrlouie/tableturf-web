@@ -48,11 +48,11 @@ impl GameState {
         player2.spend_special(&placement2, hand_idx2);
 
         let overlap: Vec<(BoardPosition, InkSpace, InkSpace)> = placement1
-            .ink_spaces
+            .ink_spaces()
             .iter()
             .filter_map(|(bp1, s1)| {
                 placement2
-                    .ink_spaces
+                    .ink_spaces()
                     .iter()
                     .find(|&&(bp2, _)| bp1.x() == bp2.x() && bp1.y() == bp2.y())
                     .map(|(_, s2)| (*bp1, *s1, *s2))
