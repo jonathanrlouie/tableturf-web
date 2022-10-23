@@ -18,23 +18,46 @@ impl PlayerNum {
 }
 
 pub struct Player {
-    pub hand: Hand,
-    pub deck: Deck,
+    hand: Hand,
+    deck: Deck,
     pub special: u32,
 }
 
 impl Player {
-    pub fn replace_card<R: DrawRng>(&mut self, idx: HandIndex, rng: &mut R) {
-        self.discard_card(idx);
-        // Don't replace the card if we're out of cards, since the game is over anyway.
-        if let Some(deck_idx) = self.deck.draw_card(rng) {
-            self.hand.set_deck_idx(idx, deck_idx);
+    // Enforce the following constraints:
+    // - Every card in hand is unavailable in the deck
+    pub fn new(hand: Hand, deck: Deck, special: u32) -> Option<Self> {
+        let card1 = hand.get(HandIndex::new(0).unwrap());
+        let card2 = hand.get(HandIndex::new(1).unwrap());
+        let card3 = hand.get(HandIndex::new(2).unwrap());
+        let card4 = hand.get(HandIndex::new(3).unwrap());
+        if deck.get(card1).is_available
+        || deck.get(card2).is_available
+        || deck.get(card3).is_available
+        || deck.get(card4).is_available {
+            return None;
         }
+        Some(Player {
+            hand,
+            deck,
+            special,
+        })
     }
 
-    fn discard_card(&mut self, idx: HandIndex) {
-        let discarded_card_idx = self.hand.get(idx);
-        self.deck.get(discarded_card_idx).is_available = false;
+    pub fn hand(&self) -> Hand {
+        self.hand
+    }
+
+    pub fn deck(&self) -> Deck {
+        self.deck
+    }
+
+    pub fn replace_card<R: DrawRng>(&mut self, idx: HandIndex, rng: &mut R) {
+        // Don't replace the card if we're out of cards, since the game is over anyway.
+        if let Some(deck_idx) = self.deck.draw_card(rng) {
+            self.deck.get(deck_idx).is_available = false;
+            self.hand.set_deck_idx(idx, deck_idx);
+        }
     }
 
     pub fn spend_special(&mut self, placement: &Placement, hand_idx: HandIndex) {
@@ -42,5 +65,78 @@ impl Player {
             let selected_card = self.deck.get(self.hand.get(hand_idx));
             self.special -= selected_card.card.special;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tableturf::card::{Card, CardState};
+    use crate::tableturf::deck::DrawRng;
+
+    struct MockRng;
+
+    impl DrawRng for MockRng {
+        fn draw<T, I: Iterator<Item=T> + Sized>(&mut self, mut iter: I) -> Option<T> {
+            iter.next()
+        }
+    }
+
+    #[test]
+    fn test_replace_card() {
+        let empty = None;
+        let spaces = [
+            [empty, empty, empty, empty, empty, empty, empty, empty],
+            [empty, empty, empty, empty, empty, empty, empty, empty],
+            [empty, empty, empty, empty, empty, empty, empty, empty],
+            [empty, empty, empty, empty, empty, empty, empty, empty],
+            [empty, empty, empty, empty, empty, empty, empty, empty],
+            [empty, empty, empty, empty, empty, empty, empty, empty],
+            [empty, empty, empty, empty, empty, empty, empty, empty],
+            [empty, empty, empty, empty, empty, empty, empty, empty],
+        ];
+        let card = Card {
+            priority: 0,
+            spaces,
+            special: 0
+        };
+        let available_card = CardState {
+            card,
+            is_available: true
+        };
+        let unavailable_card = CardState {
+            card,
+            is_available: false
+        };
+        let mut deck = Deck([
+            unavailable_card,
+            unavailable_card,
+            unavailable_card,
+            unavailable_card,
+            available_card,
+            available_card,
+            available_card,
+            available_card,
+            available_card,
+            available_card,
+            available_card,
+            available_card,
+            available_card,
+            available_card,
+            available_card,
+        ]);
+        let mut player = Player::new(
+            Hand([
+                DeckIndex::new(0).unwrap(),
+                DeckIndex::new(1).unwrap(),
+                DeckIndex::new(2).unwrap(),
+                DeckIndex::new(3).unwrap(),
+            ]),
+            deck,
+            0,
+        ).unwrap();
+        player.replace_card(HandIndex::new(0).unwrap(), &mut MockRng);
+        let deck_idx = player.hand.get(HandIndex::new(0).unwrap());
+        assert_eq!(deck_idx.get(), 4);
     }
 }

@@ -41,10 +41,10 @@ impl GameState {
     ) {
         // Spend special, if activated
         let player1 = &mut self.players[0];
-        let priority1 = player1.deck.get(player1.hand.get(hand_idx1)).card.priority;
+        let priority1 = player1.deck().get(player1.hand().get(hand_idx1)).card.priority;
         player1.spend_special(&placement1, hand_idx1);
         let player2 = &mut self.players[1];
-        let priority2 = player2.deck.get(player2.hand.get(hand_idx2)).card.priority;
+        let priority2 = player2.deck().get(player2.hand().get(hand_idx2)).card.priority;
         player2.spend_special(&placement2, hand_idx2);
 
         let overlap: Vec<(BoardPosition, InkSpace, InkSpace)> = placement1
@@ -218,11 +218,11 @@ mod tests {
         BoardPosition::new(board, x, y).unwrap()
     }
 
-    fn default_deck() -> Deck {
+    fn card_states() -> [CardState; 15] {
         let e: CardSpace = None;
         let i: CardSpace = Some(InkSpace::Normal);
         let s: CardSpace = Some(InkSpace::Special);
-        Deck([
+        [
             // Splattershot
             CardState {
                 card: Card {
@@ -493,7 +493,25 @@ mod tests {
                 },
                 is_available: true,
             },
-        ])
+        ]
+    }
+
+    fn default_deck1() -> Deck {
+        let mut card_states = card_states();
+        card_states[0].is_available = false;
+        card_states[1].is_available = false;
+        card_states[2].is_available = false;
+        card_states[3].is_available = false;
+        Deck(card_states)
+    }
+
+    fn default_deck2() -> Deck {
+        let mut card_states = card_states();
+        card_states[11].is_available = false;
+        card_states[12].is_available = false;
+        card_states[13].is_available = false;
+        card_states[14].is_available = false;
+        Deck(card_states)
     }
 
     #[test]
@@ -598,27 +616,27 @@ mod tests {
         ])
         .unwrap();
 
-        let player1 = Player {
-            hand: Hand([
+        let player1 = Player::new(
+            Hand([
                 DeckIndex::new(0).unwrap(),
                 DeckIndex::new(1).unwrap(),
                 DeckIndex::new(2).unwrap(),
                 DeckIndex::new(3).unwrap(),
             ]),
-            deck: default_deck(),
-            special: 0,
-        };
+            default_deck1(),
+            0,
+        ).unwrap();
 
-        let player2 = Player {
-            hand: Hand([
+        let player2 = Player::new(
+            Hand([
                 DeckIndex::new(11).unwrap(),
                 DeckIndex::new(12).unwrap(),
                 DeckIndex::new(13).unwrap(),
                 DeckIndex::new(14).unwrap(),
             ]),
-            deck: default_deck(),
-            special: 0,
-        };
+            default_deck2(),
+            0,
+        ).unwrap();
 
         let mut game_state = GameState {
             board,
@@ -664,27 +682,27 @@ mod tests {
         ])
         .unwrap();
 
-        let player1 = Player {
-            hand: Hand([
+        let player1 = Player::new(
+            Hand([
                 DeckIndex::new(0).unwrap(),
                 DeckIndex::new(1).unwrap(),
                 DeckIndex::new(2).unwrap(),
                 DeckIndex::new(3).unwrap(),
             ]),
-            deck: default_deck(),
-            special: 0,
-        };
+            default_deck1(),
+            0,
+        ).unwrap();
 
-        let player2 = Player {
-            hand: Hand([
+        let player2 = Player::new(
+            Hand([
                 DeckIndex::new(0).unwrap(),
                 DeckIndex::new(1).unwrap(),
                 DeckIndex::new(2).unwrap(),
                 DeckIndex::new(3).unwrap(),
             ]),
-            deck: default_deck(),
-            special: 0,
-        };
+            default_deck1(),
+            0,
+        ).unwrap();
 
         GameState {
             board,
@@ -703,27 +721,32 @@ mod tests {
         ])
         .unwrap();
 
-        let player1 = Player {
-            hand: Hand([
+        let player1 = Player::new(
+            Hand([
                 DeckIndex::new(0).unwrap(),
                 DeckIndex::new(1).unwrap(),
                 DeckIndex::new(2).unwrap(),
                 DeckIndex::new(3).unwrap(),
             ]),
-            deck: default_deck(),
-            special: 0,
-        };
+            default_deck1(),
+            0,
+        ).unwrap();
 
-        let player2 = Player {
-            hand: Hand([
+        let mut card_spaces = card_states();
+        card_spaces[13].is_available = false;
+        card_spaces[1].is_available = false;
+        card_spaces[2].is_available = false;
+        card_spaces[3].is_available = false;
+        let player2 = Player::new(
+            Hand([
                 DeckIndex::new(13).unwrap(),
                 DeckIndex::new(1).unwrap(),
                 DeckIndex::new(2).unwrap(),
                 DeckIndex::new(3).unwrap(),
             ]),
-            deck: default_deck(),
-            special: 0,
-        };
+            Deck(card_spaces),
+            0,
+        ).unwrap();
 
         GameState {
             board,

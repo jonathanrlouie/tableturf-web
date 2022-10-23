@@ -2,6 +2,7 @@ use crate::tableturf::deck::DeckIndex;
 
 pub use self::hand_idx::{HandIndex, HAND_SIZE};
 
+#[derive(Copy, Clone)]
 pub struct Hand(pub [DeckIndex; HAND_SIZE]);
 
 impl Hand {
@@ -32,5 +33,22 @@ mod hand_idx {
         pub fn get(&self) -> usize {
             self.0
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_construct_hand_index() {
+        let invalid_idx = HandIndex::new(4);
+        assert!(invalid_idx.is_none());
+
+        let min_valid_idx = HandIndex::new(0);
+        assert!(min_valid_idx.is_some());
+
+        let max_valid_idx = HandIndex::new(3);
+        assert!(max_valid_idx.is_some());
     }
 }

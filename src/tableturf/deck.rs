@@ -1,6 +1,4 @@
 pub use self::deck_idx::{DeckIndex, DECK_SIZE};
-use rand::prelude::IteratorRandom;
-use rand::thread_rng;
 
 use crate::tableturf::card::CardState;
 
@@ -8,6 +6,7 @@ pub trait DrawRng {
     fn draw<T, I: Iterator<Item=T> + Sized>(&mut self, iter: I) -> Option<T>;
 }
 
+#[derive(Copy, Clone)]
 pub struct Deck(pub [CardState; DECK_SIZE]);
 
 impl Deck {

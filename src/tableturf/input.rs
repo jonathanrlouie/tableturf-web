@@ -188,7 +188,7 @@ impl ValidInput {
 
         // Validate that the user's selected card is available
         let player = &game_state.players[player_num.idx()];
-        let selected_card_state = player.deck.get(player.hand.get(hand_idx));
+        let selected_card_state = player.deck().get(player.hand().get(hand_idx));
         if !selected_card_state.is_available {
             return None;
         }
