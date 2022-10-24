@@ -1,5 +1,4 @@
 use crate::tableturf::board::BoardSpace;
-use crate::tableturf::player::PlayerNum;
 
 pub const ROW_LEN: usize = 8;
 
@@ -7,18 +6,6 @@ pub const ROW_LEN: usize = 8;
 pub enum InkSpace {
     Normal,
     Special,
-}
-
-impl InkSpace {
-    pub fn into_board_space(self, player_num: PlayerNum) -> BoardSpace {
-        match self {
-            InkSpace::Normal => BoardSpace::Ink { player_num },
-            InkSpace::Special => BoardSpace::Special {
-                player_num,
-                is_activated: false,
-            },
-        }
-    }
 }
 
 pub type CardSpace = Option<InkSpace>;

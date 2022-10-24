@@ -18,7 +18,7 @@ impl DrawRng for DeckRng {
     }
 }
 
-enum Outcome {
+pub enum Outcome {
     P1Win,
     P2Win,
     Draw,
@@ -40,8 +40,8 @@ impl GameState {
     }
 
     pub fn check_winner(&self) -> Outcome {
-        let p1_inked_spaces = count_inked_spaces(&self.board, PlayerNum::P1);
-        let p2_inked_spaces = count_inked_spaces(&self.board, PlayerNum::P2);
+        let p1_inked_spaces = self.board.count_inked_spaces(PlayerNum::P1);
+        let p2_inked_spaces = self.board.count_inked_spaces(PlayerNum::P2);
 
         match p1_inked_spaces.cmp(&p2_inked_spaces) {
             Ordering::Greater => Outcome::P1Win,
@@ -157,15 +157,6 @@ impl GameState {
     }
 }
 
-fn count_inked_spaces(board: &Board, player_num: PlayerNum) -> u32 {
-    board.get().iter().fold(0, |acc, row| {
-        acc + row
-            .iter()
-            .filter(|s| s.is_ink(player_num))
-            .fold(0, |acc, _| acc + 1)
-    })
-}
-
 // normal_collision_space is the space used when an ink space conflicts with an ink space
 // special_collision_space is the space used when a special space conflicts with a special space
 fn resolve_overlap(
@@ -211,7 +202,7 @@ fn update_special_gauge(player: &mut Player, player_num: PlayerNum, board: &mut 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tableturf::board::{self, Board, BoardPosition};
+    use crate::tableturf::board::{Board, BoardPosition};
     use crate::tableturf::card::{Card, CardSpace, CardState};
     use crate::tableturf::deck::{Deck, DeckIndex};
     use crate::tableturf::hand::{Hand, HandIndex};
@@ -517,36 +508,6 @@ mod tests {
     }
 
     #[test]
-    fn test_count_inked_spaces() {
-        let p1_ink = BoardSpace::Ink {
-            player_num: PlayerNum::P1,
-        };
-        let p2_ink = BoardSpace::Ink {
-            player_num: PlayerNum::P2,
-        };
-        let p1_special = BoardSpace::Special {
-            player_num: PlayerNum::P1,
-            is_activated: false,
-        };
-        let p2_special = BoardSpace::Special {
-            player_num: PlayerNum::P2,
-            is_activated: false,
-        };
-        let empty = BoardSpace::Empty;
-        let wall = BoardSpace::Wall;
-        let board = Board::new(vec![
-            vec![empty, p1_ink, p2_ink],
-            vec![empty, wall, p1_special],
-            vec![p2_special, empty, p1_ink],
-        ])
-        .unwrap();
-        let player1_ink_total = count_inked_spaces(&board, PlayerNum::P1);
-        let player2_ink_total = count_inked_spaces(&board, PlayerNum::P2);
-        assert_eq!(player1_ink_total, 3);
-        assert_eq!(player2_ink_total, 2);
-    }
-
-    #[test]
     fn test_surrounding_spaces() {
         let p1_ink = BoardSpace::Ink {
             player_num: PlayerNum::P1,
@@ -571,7 +532,7 @@ mod tests {
             vec![p2_special, empty, p1_ink],
         ])
         .unwrap();
-        let spaces = board::surrounding_spaces(board_pos(&board, 1, 1), &board);
+        let spaces = board_pos(&board, 1, 1).surrounding_spaces(&board);
         assert_eq!(spaces[0], empty);
         assert_eq!(spaces[1], p1_ink);
         assert_eq!(spaces[2], p2_ink);
@@ -581,7 +542,7 @@ mod tests {
         assert_eq!(spaces[6], empty);
         assert_eq!(spaces[7], p1_ink);
 
-        let spaces = board::surrounding_spaces(board_pos(&board, 0, 0), &board);
+        let spaces = board_pos(&board, 0, 0).surrounding_spaces(&board);
         assert_eq!(spaces[0], oob);
         assert_eq!(spaces[1], oob);
         assert_eq!(spaces[2], oob);
@@ -646,8 +607,9 @@ mod tests {
             12,
         );
 
+        let hand_idx = HandIndex::new(0).unwrap();
         game_state.place(
-            HandIndex::new(0).unwrap(),
+            hand_idx,
             Placement::new(
                 vec![
                     (board_pos(&game_state.board, 0, 0), InkSpace::Normal),
@@ -660,7 +622,11 @@ mod tests {
                     (board_pos(&game_state.board, 0, 2), InkSpace::Normal),
                 ],
                 false,
-            ),
+                hand_idx,
+                &game_state.board,
+                &game_state.players[0],
+                PlayerNum::P1
+            ).unwrap(),
             PlayerNum::P1,
         );
 
@@ -775,9 +741,10 @@ mod tests {
         let mut game_state1 = game_state1();
         let board1 = &game_state1.board;
 
+        let hand_idx = HandIndex::new(0).unwrap();
         game_state1.place_both(
-            HandIndex::new(0).unwrap(),
-            HandIndex::new(0).unwrap(),
+            hand_idx,
+            hand_idx,
             Placement::new(
                 vec![
                     (board_pos(board1, 0, 0), InkSpace::Normal),
@@ -790,7 +757,11 @@ mod tests {
                     (board_pos(board1, 0, 2), InkSpace::Normal),
                 ],
                 false,
-            ),
+                hand_idx,
+                &game_state1.board,
+                &game_state1.players[0],
+                PlayerNum::P1
+            ).unwrap(),
             Placement::new(
                 vec![
                     (board_pos(board1, 0, 0), InkSpace::Normal),
@@ -803,7 +774,11 @@ mod tests {
                     (board_pos(board1, 0, 2), InkSpace::Normal),
                 ],
                 false,
-            ),
+                hand_idx,
+                &game_state1.board,
+                &game_state1.players[1],
+                PlayerNum::P2
+            ).unwrap(),
         );
 
         let expected_board1 = Board::new(vec![
@@ -816,9 +791,10 @@ mod tests {
         assert_eq!(game_state1.board, expected_board1);
 
         let mut game_state2 = game_state2();
+        let hand_idx = HandIndex::new(0).unwrap();
         game_state2.place_both(
-            HandIndex::new(0).unwrap(),
-            HandIndex::new(0).unwrap(),
+            hand_idx,
+            hand_idx,
             Placement::new(
                 vec![
                     (board_pos(&game_state2.board, 0, 0), InkSpace::Normal),
@@ -831,7 +807,11 @@ mod tests {
                     (board_pos(&game_state2.board, 0, 2), InkSpace::Normal),
                 ],
                 false,
-            ),
+                hand_idx,
+                &game_state2.board,
+                &game_state2.players[0],
+                PlayerNum::P1
+            ).unwrap(),
             Placement::new(
                 vec![
                     (board_pos(&game_state2.board, 1, 1), InkSpace::Normal),
@@ -839,7 +819,11 @@ mod tests {
                     (board_pos(&game_state2.board, 2, 0), InkSpace::Special),
                 ],
                 false,
-            ),
+                hand_idx,
+                &game_state2.board,
+                &game_state2.players[1],
+                PlayerNum::P2
+            ).unwrap(),
         );
 
         let expected_board2 = Board::new(vec![

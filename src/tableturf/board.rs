@@ -70,6 +70,44 @@ impl BoardPosition {
     pub fn y(&self) -> usize {
         self.1
     }
+
+    // Get the spaces surrounding the given position
+    pub fn surrounding_spaces(&self, board: &Board) -> [BoardSpace; 8] {
+        let x = self.x() as i32;
+        let y = self.y() as i32;
+        let nw_space = board.get_space(x - 1, y - 1);
+        let n_space = board.get_space(x, y - 1);
+        let ne_space = board.get_space(x + 1, y - 1);
+        let w_space = board.get_space(x - 1, y);
+        let e_space = board.get_space(x + 1, y);
+        let sw_space = board.get_space(x - 1, y + 1);
+        let s_space = board.get_space(x, y + 1);
+        let se_space = board.get_space(x + 1, y + 1);
+
+        [
+            nw_space, n_space, ne_space, w_space, e_space, sw_space, s_space, se_space,
+        ]
+    }
+
+    pub fn is_surrounded(&self, board: &Board) -> bool {
+        self.surrounding_spaces(board)
+            .iter()
+            .all(|s| !matches!(s, BoardSpace::Empty))
+    }
+
+    // Test if a single space is adjacent to a player's special space
+    pub fn adjacent_to_special(&self, board: &Board, player_num: PlayerNum) -> bool {
+        self.surrounding_spaces(board)
+            .iter()
+            .any(|s| s.is_special(player_num))
+    }
+
+    // Test if a single space is adjacent to a player's inked space
+    pub fn adjacent_to_ink(&self, board: &Board, player_num: PlayerNum) -> bool {
+        self.surrounding_spaces(board)
+            .iter()
+            .any(|s| s.is_ink(player_num))
+    }
 }
 
 pub const MAX_BOARD_WIDTH: usize = 25;
@@ -141,7 +179,7 @@ impl Board {
                     .enumerate()
                     .filter(move |(x, s)| {
                         let board_pos = BoardPosition::new(self, *x, y).unwrap();
-                        s.is_inactive_special(player_num) && is_surrounded(board_pos, self)
+                        s.is_inactive_special(player_num) && board_pos.is_surrounded(self)
                     })
                     .map(move |(x, s)| (BoardPosition::new(self, x, y).unwrap(), *s))
             })
@@ -153,30 +191,32 @@ impl Board {
             (self.0)[bp.y() as usize][bp.x() as usize] = s;
         }
     }
-}
 
-// Get the spaces surrounding the given position
-pub fn surrounding_spaces(board_pos: BoardPosition, board: &Board) -> [BoardSpace; 8] {
-    let x = board_pos.x() as i32;
-    let y = board_pos.y() as i32;
-    let nw_space = board.get_space(x - 1, y - 1);
-    let n_space = board.get_space(x, y - 1);
-    let ne_space = board.get_space(x + 1, y - 1);
-    let w_space = board.get_space(x - 1, y);
-    let e_space = board.get_space(x + 1, y);
-    let sw_space = board.get_space(x - 1, y + 1);
-    let s_space = board.get_space(x, y + 1);
-    let se_space = board.get_space(x + 1, y + 1);
+    pub fn count_inked_spaces(&self, player_num: PlayerNum) -> u32 {
+        self.get().iter().fold(0, |acc, row| {
+            acc + row
+                .iter()
+                .filter(|s| s.is_ink(player_num))
+                .fold(0, |acc, _| acc + 1)
+        })
+    }
 
-    [
-        nw_space, n_space, ne_space, w_space, e_space, sw_space, s_space, se_space,
-    ]
-}
+    pub fn get_absolute_position(
+        &self,
+        x_offset: usize,
+        y_offset: usize,
+        board_x: i32,
+        board_y: i32,
+    ) -> Option<BoardPosition> {
+        let x_offset: i32 = x_offset.try_into().ok()?;
+        let y_offset: i32 = y_offset.try_into().ok()?;
+        let x = i32::checked_add(board_x, x_offset)?;
+        let y = i32::checked_add(board_y, y_offset)?;
+        let x: usize = x.try_into().ok()?;
+        let y: usize = y.try_into().ok()?;
+        BoardPosition::new(self, x, y)
+    }
 
-fn is_surrounded(board_pos: BoardPosition, board: &Board) -> bool {
-    surrounding_spaces(board_pos, board)
-        .iter()
-        .all(|s| !matches!(s, BoardSpace::Empty))
 }
 
 #[cfg(test)]
@@ -288,7 +328,7 @@ mod tests {
         let oob = BoardSpace::OutOfBounds;
         let empty = BoardSpace::Empty;
         let board = Board::new(vec![vec![empty, empty], vec![empty, empty]]).unwrap();
-        let spaces = surrounding_spaces(BoardPosition::new(&board, 0, 0).unwrap(), &board);
+        let spaces = BoardPosition::new(&board, 0, 0).unwrap().surrounding_spaces(&board);
         assert_eq!(spaces[0], oob);
         assert_eq!(spaces[1], oob);
         assert_eq!(spaces[2], oob);
@@ -297,6 +337,62 @@ mod tests {
         assert_eq!(spaces[5], oob);
         assert_eq!(spaces[6], empty);
         assert_eq!(spaces[7], empty);
+    }
+
+    #[test]
+    fn test_is_surrounded() {
+        let wall = BoardSpace::Wall;
+        let empty = BoardSpace::Empty;
+        let board = Board::new(vec![
+            vec![empty, wall, empty],
+            vec![wall, wall, empty],
+            vec![empty, empty, empty],
+        ]).unwrap();
+        let surrounded_pos = BoardPosition::new(&board, 0, 0).unwrap();
+        assert!(surrounded_pos.is_surrounded(&board));
+        let not_surrounded_pos = BoardPosition::new(&board, 1, 0).unwrap();
+        assert!(!not_surrounded_pos.is_surrounded(&board));
+    }
+
+    #[test]
+    fn test_adjacent_to_ink() {
+        let empty = BoardSpace::Empty;
+        let p1_ink = BoardSpace::Ink{ player_num: PlayerNum::P1 };
+        let p1_special = BoardSpace::Special{ player_num: PlayerNum::P1, is_activated: false };
+        let p2_ink = BoardSpace::Ink{ player_num: PlayerNum::P2 };
+        let board = Board::new(vec![
+            vec![empty, p1_ink, empty],
+            vec![p2_ink, empty, p1_special],
+            vec![empty, empty, empty],
+        ]).unwrap();
+        let pos1 = BoardPosition::new(&board, 0, 0).unwrap();
+        assert!(pos1.adjacent_to_ink(&board, PlayerNum::P1));
+        let pos2 = BoardPosition::new(&board, 0, 2).unwrap();
+        assert!(!pos2.adjacent_to_ink(&board, PlayerNum::P1));
+        let pos3 = BoardPosition::new(&board, 2, 2).unwrap();
+        assert!(pos3.adjacent_to_ink(&board, PlayerNum::P1));
+    }
+
+    #[test]
+    fn test_adjacent_to_special() {
+        let empty = BoardSpace::Empty;
+        let p1_ink = BoardSpace::Ink{ player_num: PlayerNum::P1 };
+        let p1_special = BoardSpace::Special{ player_num: PlayerNum::P1, is_activated: false };
+        let p2_ink = BoardSpace::Ink{ player_num: PlayerNum::P2 };
+        let p2_special = BoardSpace::Special{ player_num: PlayerNum::P2, is_activated: false };
+        let board = Board::new(vec![
+            vec![empty, p1_ink, empty],
+            vec![p2_ink, empty, p1_special],
+            vec![empty, p2_special, empty],
+        ]).unwrap();
+        let pos1 = BoardPosition::new(&board, 0, 0).unwrap();
+        assert!(!pos1.adjacent_to_special(&board, PlayerNum::P1));
+        let pos2 = BoardPosition::new(&board, 0, 2).unwrap();
+        assert!(!pos2.adjacent_to_special(&board, PlayerNum::P1));
+        let pos3 = BoardPosition::new(&board, 2, 2).unwrap();
+        assert!(pos3.adjacent_to_special(&board, PlayerNum::P1));
+        let pos4 = BoardPosition::new(&board, 1, 0).unwrap();
+        assert!(pos4.adjacent_to_special(&board, PlayerNum::P1));
     }
 
     #[test]
@@ -333,5 +429,44 @@ mod tests {
         assert_eq!(two_specials[0].0.y(), 0);
         assert_eq!(two_specials[1].0.x(), 1);
         assert_eq!(two_specials[1].0.y(), 1);
+    }
+
+    #[test]
+    fn test_count_inked_spaces() {
+        let p1_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P1,
+        };
+        let p2_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P2,
+        };
+        let p1_special = BoardSpace::Special {
+            player_num: PlayerNum::P1,
+            is_activated: false,
+        };
+        let p2_special = BoardSpace::Special {
+            player_num: PlayerNum::P2,
+            is_activated: false,
+        };
+        let empty = BoardSpace::Empty;
+        let wall = BoardSpace::Wall;
+        let board = Board::new(vec![
+            vec![empty, p1_ink, p2_ink],
+            vec![empty, wall, p1_special],
+            vec![p2_special, empty, p1_ink],
+        ])
+        .unwrap();
+        let player1_ink_total = board.count_inked_spaces(PlayerNum::P1);
+        let player2_ink_total = board.count_inked_spaces(PlayerNum::P2);
+        assert_eq!(player1_ink_total, 3);
+        assert_eq!(player2_ink_total, 2);
+    }
+
+    #[test]
+    fn test_get_absolute_position() {
+        let empty = BoardSpace::Empty;
+        let board = Board::new(vec![vec![empty, empty], vec![empty, empty]]).unwrap();
+        let valid_pos = board.get_absolute_position(7, 7, -7, -7);
+        assert!(valid_pos.is_some());
+        assert_eq!(valid_pos.unwrap(), BoardPosition::new(&board, 0, 0).unwrap());
     }
 }

@@ -1,3 +1,4 @@
+use crate::tableturf::card::{Card};
 use crate::tableturf::deck::{DrawRng, Deck};
 use crate::tableturf::hand::{Hand, HandIndex};
 use crate::tableturf::input::Placement;
@@ -50,6 +51,12 @@ impl Player {
 
     pub fn deck(&self) -> &Deck {
         &self.deck
+    }
+
+    pub fn get_card(&self, hand_idx: HandIndex) -> Card {
+        self.deck
+            .get(self.hand.get(hand_idx))
+            .card()
     }
 
     pub fn replace_card<R: DrawRng>(&mut self, idx: HandIndex, rng: &mut R) {
