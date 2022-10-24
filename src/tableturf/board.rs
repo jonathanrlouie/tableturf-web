@@ -42,30 +42,6 @@ impl BoardSpace {
     }
 }
 
-fn is_surrounded(board_pos: BoardPosition, board: &Board) -> bool {
-    surrounding_spaces(board_pos, board)
-        .iter()
-        .all(|s| !matches!(s, BoardSpace::Empty))
-}
-
-// Get the spaces surrounding the given position
-pub fn surrounding_spaces(board_pos: BoardPosition, board: &Board) -> [BoardSpace; 8] {
-    let x = board_pos.x() as i32;
-    let y = board_pos.y() as i32;
-    let nw_space = board.get_space(x - 1, y - 1);
-    let n_space = board.get_space(x, y - 1);
-    let ne_space = board.get_space(x + 1, y - 1);
-    let w_space = board.get_space(x - 1, y);
-    let e_space = board.get_space(x + 1, y);
-    let sw_space = board.get_space(x - 1, y + 1);
-    let s_space = board.get_space(x, y + 1);
-    let se_space = board.get_space(x + 1, y + 1);
-
-    [
-        nw_space, n_space, ne_space, w_space, e_space, sw_space, s_space, se_space,
-    ]
-}
-
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct BoardPosition(usize, usize);
 
@@ -156,7 +132,7 @@ impl Board {
     pub fn get_surrounded_inactive_specials(
         &self,
         player_num: PlayerNum,
-    ) -> Vec<(usize, usize, BoardSpace)> {
+    ) -> Vec<(BoardPosition, BoardSpace)> {
         self.0
             .iter()
             .enumerate()
@@ -167,7 +143,7 @@ impl Board {
                         let board_pos = BoardPosition::new(self, *x, y).unwrap();
                         s.is_inactive_special(player_num) && is_surrounded(board_pos, self)
                     })
-                    .map(move |(x, s)| (x, y, *s))
+                    .map(move |(x, s)| (BoardPosition::new(self, x, y).unwrap(), *s))
             })
             .collect()
     }
@@ -177,6 +153,30 @@ impl Board {
             (self.0)[bp.y() as usize][bp.x() as usize] = s;
         }
     }
+}
+
+// Get the spaces surrounding the given position
+pub fn surrounding_spaces(board_pos: BoardPosition, board: &Board) -> [BoardSpace; 8] {
+    let x = board_pos.x() as i32;
+    let y = board_pos.y() as i32;
+    let nw_space = board.get_space(x - 1, y - 1);
+    let n_space = board.get_space(x, y - 1);
+    let ne_space = board.get_space(x + 1, y - 1);
+    let w_space = board.get_space(x - 1, y);
+    let e_space = board.get_space(x + 1, y);
+    let sw_space = board.get_space(x - 1, y + 1);
+    let s_space = board.get_space(x, y + 1);
+    let se_space = board.get_space(x + 1, y + 1);
+
+    [
+        nw_space, n_space, ne_space, w_space, e_space, sw_space, s_space, se_space,
+    ]
+}
+
+fn is_surrounded(board_pos: BoardPosition, board: &Board) -> bool {
+    surrounding_spaces(board_pos, board)
+        .iter()
+        .all(|s| !matches!(s, BoardSpace::Empty))
 }
 
 #[cfg(test)]
@@ -281,5 +281,31 @@ mod tests {
         assert!(outside_row_and_col.is_none());
         let valid_pos = BoardPosition::new(&board, 1, 1);
         assert!(valid_pos.is_some());
+    }
+
+    #[test]
+    fn test_surrounding_spaces() {
+        let oob = BoardSpace::OutOfBounds;
+        let empty = BoardSpace::Empty;
+        let board = Board::new(vec![vec![empty, empty], vec![empty, empty]]).unwrap();
+        let spaces = surrounding_spaces(BoardPosition::new(&board, 0, 0).unwrap(), &board);
+        assert_eq!(spaces[0], oob);
+        assert_eq!(spaces[1], oob);
+        assert_eq!(spaces[2], oob);
+        assert_eq!(spaces[3], oob);
+        assert_eq!(spaces[4], empty);
+        assert_eq!(spaces[5], oob);
+        assert_eq!(spaces[6], empty);
+        assert_eq!(spaces[7], empty);
+    }
+
+    #[test]
+    fn test_get_surrounded_inactive_specials() {
+        let oob = BoardSpace::OutOfBounds;
+        let empty = BoardSpace::Empty;
+        let board = Board::new(vec![vec![empty, empty], vec![empty, empty]]).unwrap();
+        let spaces = surrounding_spaces(BoardPosition::new(&board, 0, 0).unwrap(), &board);
+        let no_spaces = board.get_surrounded_inactive_specials(PlayerNum::P1);
+        assert!(no_spaces.is_empty());
     }
 }

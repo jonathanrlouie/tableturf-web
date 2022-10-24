@@ -253,7 +253,7 @@ fn rotate_grid_ccw(grid: &mut Grid) {
         for j in i..(ROW_LEN - i - 1) {
             let temp = grid[i][j];
             grid[i][j] = grid[j][ROW_LEN - 1 - i];
-            grid[j][ROW_LEN - 1 - i] = grid[ROW_LEN - 1 - i][ROW_LEN - 1 - i];
+            grid[j][ROW_LEN - 1 - i] = grid[ROW_LEN - 1 - i][ROW_LEN - 1 - j];
             grid[ROW_LEN - 1 - i][ROW_LEN - 1 - j] = grid[ROW_LEN - 1 - j][i];
             grid[ROW_LEN - 1 - j][i] = temp;
         }
@@ -304,14 +304,50 @@ mod tests {
             ],
             3,
         );
-        let zero = rotate_input(&splattershot, Rotation::Zero);
-        assert_eq!(zero, [
+        let zero_rotations = rotate_input(&splattershot, Rotation::Zero);
+        assert_eq!(zero_rotations, [
             [e, e, e, e, e, e, e, e],
             [e, e, e, e, e, e, e, e],
             [e, e, i, i, s, e, e, e],
             [e, e, i, i, i, i, e, e],
             [e, e, i, e, e, e, e, e],
             [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+        ]);
+
+        let one_rotation = rotate_input(&splattershot, Rotation::One);
+        assert_eq!(one_rotation, [
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, i, e, e, e, e],
+            [e, e, s, i, e, e, e, e],
+            [e, e, i, i, e, e, e, e],
+            [e, e, i, i, i, e, e, e],
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+        ]);
+
+        let two_rotations = rotate_input(&splattershot, Rotation::Two);
+        assert_eq!(two_rotations, [
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, i, e, e],
+            [e, e, i, i, i, i, e, e],
+            [e, e, e, s, i, i, e, e],
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+        ]);
+
+        let three_rotations = rotate_input(&splattershot, Rotation::Three);
+        assert_eq!(three_rotations, [
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, i, i, i, e, e],
+            [e, e, e, e, i, i, e, e],
+            [e, e, e, e, i, s, e, e],
+            [e, e, e, e, i, e, e, e],
             [e, e, e, e, e, e, e, e],
             [e, e, e, e, e, e, e, e],
         ]);

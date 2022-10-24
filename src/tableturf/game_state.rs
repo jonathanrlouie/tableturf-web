@@ -199,8 +199,8 @@ fn resolve_overlap(
 fn update_special_gauge(player: &mut Player, player_num: PlayerNum, board: &mut Board) {
     let special_spaces = board.get_surrounded_inactive_specials(player_num);
     // activate surrounded special spaces
-    for (x, y, _) in &special_spaces {
-        board.get_mut()[*y][*x] = BoardSpace::Special {
+    for (bp, _) in &special_spaces {
+        board.get_mut()[bp.y()][bp.x()] = BoardSpace::Special {
             player_num,
             is_activated: true,
         }
