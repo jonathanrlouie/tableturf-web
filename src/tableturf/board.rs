@@ -303,9 +303,35 @@ mod tests {
     fn test_get_surrounded_inactive_specials() {
         let oob = BoardSpace::OutOfBounds;
         let empty = BoardSpace::Empty;
+        let p1_ink = BoardSpace::Ink{ player_num: PlayerNum::P1 };
+        let p1_special = BoardSpace::Special{ player_num: PlayerNum::P1, is_activated: false };
+        let p2_ink = BoardSpace::Ink{ player_num: PlayerNum::P2 };
         let board = Board::new(vec![vec![empty, empty], vec![empty, empty]]).unwrap();
-        let spaces = surrounding_spaces(BoardPosition::new(&board, 0, 0).unwrap(), &board);
         let no_spaces = board.get_surrounded_inactive_specials(PlayerNum::P1);
         assert!(no_spaces.is_empty());
+
+        let special_surrounded = Board::new(vec![vec![p1_special, p1_ink], vec![p1_ink, p1_ink]]).unwrap();
+        let one_special = special_surrounded.get_surrounded_inactive_specials(PlayerNum::P1);
+        assert_eq!(one_special.len(), 1);
+        assert_eq!(one_special[0].0.x(), 0);
+        assert_eq!(one_special[0].0.y(), 0);
+
+        let off_by_one_board = Board::new(vec![vec![p1_special, p1_ink], vec![p1_ink, empty]]).unwrap();
+        let no_special = off_by_one_board.get_surrounded_inactive_specials(PlayerNum::P1);
+        assert!(no_special.is_empty());
+
+        let enemy_ink_board = Board::new(vec![vec![p1_special, p1_ink], vec![p1_ink, p2_ink]]).unwrap();
+        let one_special = enemy_ink_board.get_surrounded_inactive_specials(PlayerNum::P1);
+        assert_eq!(one_special.len(), 1);
+        assert_eq!(one_special[0].0.x(), 0);
+        assert_eq!(one_special[0].0.y(), 0);
+
+        let multiple_specials_board = Board::new(vec![vec![p1_special, p1_ink], vec![p1_ink, p1_special]]).unwrap();
+        let two_specials = multiple_specials_board.get_surrounded_inactive_specials(PlayerNum::P1);
+        assert_eq!(two_specials.len(), 2);
+        assert_eq!(two_specials[0].0.x(), 0);
+        assert_eq!(two_specials[0].0.y(), 0);
+        assert_eq!(two_specials[1].0.x(), 1);
+        assert_eq!(two_specials[1].0.y(), 1);
     }
 }
