@@ -700,19 +700,11 @@ mod tests {
         let p1_ink = BoardSpace::Ink {
             player_num: PlayerNum::P1,
         };
-        let p2_ink = BoardSpace::Ink {
-            player_num: PlayerNum::P2,
-        };
         let p1_special = BoardSpace::Special {
             player_num: PlayerNum::P1,
             is_activated: false,
         };
-        let p2_special = BoardSpace::Special {
-            player_num: PlayerNum::P2,
-            is_activated: false,
-        };
         let empty = BoardSpace::Empty;
-        let wall = BoardSpace::Wall;
         let board = Board::new(vec![
             vec![empty, empty, empty, empty],
             vec![empty, empty, empty, empty],
@@ -794,7 +786,6 @@ mod tests {
         let wall = BoardSpace::Wall;
 
         let mut game_state1 = game_state1();
-        let board1 = &game_state1.board;
 
         let hand_idx = HandIndex::new(0).unwrap();
         game_state1.place_both(
@@ -1088,6 +1079,7 @@ mod tests {
 
     #[test]
     fn test_update() {
+        // Both players pass
         let mut game_state = game_state1();
         let empty = BoardSpace::Empty;
         let p1_ink = BoardSpace::Ink {
@@ -1095,6 +1087,22 @@ mod tests {
         };
         let p2_ink = BoardSpace::Ink {
             player_num: PlayerNum::P2,
+        };
+        let p1_special = BoardSpace::Special {
+            player_num: PlayerNum::P1,
+            is_activated: false,
+        };
+        let p2_special = BoardSpace::Special {
+            player_num: PlayerNum::P2,
+            is_activated: false,
+        };
+        let p1_special_active = BoardSpace::Special {
+            player_num: PlayerNum::P1,
+            is_activated: true,
+        };
+        let p2_special_active = BoardSpace::Special {
+            player_num: PlayerNum::P2,
+            is_activated: true,
         };
 
         let input1 = ValidInput::new(
@@ -1141,22 +1149,8 @@ mod tests {
             DeckIndex::new(4).unwrap()
         );
 
+        // One player passes
         let mut game_state = game_state1();
-        let empty = BoardSpace::Empty;
-        let p1_ink = BoardSpace::Ink {
-            player_num: PlayerNum::P1,
-        };
-        let p1_special = BoardSpace::Special {
-            player_num: PlayerNum::P1,
-            is_activated: false,
-        };
-        let p2_ink = BoardSpace::Ink {
-            player_num: PlayerNum::P2,
-        };
-        let p2_special = BoardSpace::Special {
-            player_num: PlayerNum::P2,
-            is_activated: false,
-        };
 
         let input1 = ValidInput::new(
             RawInput {
@@ -1204,6 +1198,196 @@ mod tests {
         );
         assert_eq!(
             game_state.players[1].hand().get(HandIndex::new(0).unwrap()),
+            DeckIndex::new(4).unwrap()
+        );
+
+        // Both players place ink
+        let board = Board::new(vec![
+            vec![empty, empty, empty, p1_ink],
+            vec![empty, empty, empty, empty],
+            vec![empty, empty, empty, empty],
+            vec![empty, p1_ink, p2_ink, empty],
+        ])
+        .unwrap();
+
+        let player1 = Player::new(
+            Hand::new([
+                DeckIndex::new(0).unwrap(),
+                DeckIndex::new(1).unwrap(),
+                DeckIndex::new(2).unwrap(),
+                DeckIndex::new(3).unwrap(),
+            ]),
+            default_deck1(),
+            0,
+        )
+        .unwrap();
+
+        let player2 = Player::new(
+            Hand::new([
+                DeckIndex::new(0).unwrap(),
+                DeckIndex::new(1).unwrap(),
+                DeckIndex::new(2).unwrap(),
+                DeckIndex::new(3).unwrap(),
+            ]),
+            default_deck1(),
+            0,
+        )
+        .unwrap();
+
+        let mut game_state = GameState::new(board, [player1, player2], 1);
+
+        let input1 = ValidInput::new(
+            RawInput {
+                hand_idx: 0,
+                action: Action::Place {
+                    x: -2,
+                    y: -2,
+                    special_activated: false,
+                    rotation: Rotation::Zero,
+                },
+            },
+            &game_state.board,
+            &game_state.players[0],
+            PlayerNum::P1,
+        )
+        .unwrap();
+
+        let input2 = ValidInput::new(
+            RawInput {
+                hand_idx: 1,
+                action: Action::Place {
+                    x: -2,
+                    y: -2,
+                    special_activated: false,
+                    rotation: Rotation::Zero,
+                },
+            },
+            &game_state.board,
+            &game_state.players[1],
+            PlayerNum::P2,
+        )
+        .unwrap();
+
+        let mut rng = MockRng;
+        game_state.update(&mut rng, input1, input2);
+        let expected_board = Board::new(vec![
+            vec![p2_ink, p1_ink, p1_special_active, p1_ink],
+            vec![p1_ink, p2_special_active, p2_ink, p1_ink],
+            vec![p2_ink, p2_ink, p2_ink, empty],
+            vec![empty, p1_ink, p2_ink, empty],
+        ])
+        .unwrap();
+        assert_eq!(game_state.turns_left(), 0);
+        assert_eq!(game_state.board, expected_board);
+        assert_eq!(game_state.players[0].special, 1);
+        assert_eq!(game_state.players[1].special, 1);
+        assert_eq!(
+            game_state.players[0].hand().get(HandIndex::new(0).unwrap()),
+            DeckIndex::new(4).unwrap()
+        );
+        assert_eq!(
+            game_state.players[1].hand().get(HandIndex::new(0).unwrap()),
+            DeckIndex::new(0).unwrap()
+        );
+        assert_eq!(
+            game_state.players[1].hand().get(HandIndex::new(1).unwrap()),
+            DeckIndex::new(4).unwrap()
+        );
+        assert_eq!(
+            game_state.players[1].hand().get(HandIndex::new(2).unwrap()),
+            DeckIndex::new(2).unwrap()
+        );
+        assert_eq!(
+            game_state.players[1].hand().get(HandIndex::new(3).unwrap()),
+            DeckIndex::new(3).unwrap()
+        );
+
+        // Both players place specials
+        let board = Board::new(vec![
+            vec![empty, p2_ink, empty, p1_special_active],
+            vec![empty, empty, empty, empty],
+            vec![empty, p1_ink, empty, empty],
+            vec![empty, empty, p2_special, empty],
+        ])
+        .unwrap();
+
+        let player1 = Player::new(
+            Hand::new([
+                DeckIndex::new(0).unwrap(),
+                DeckIndex::new(1).unwrap(),
+                DeckIndex::new(2).unwrap(),
+                DeckIndex::new(3).unwrap(),
+            ]),
+            default_deck1(),
+            7,
+        )
+        .unwrap();
+
+        let player2 = Player::new(
+            Hand::new([
+                DeckIndex::new(0).unwrap(),
+                DeckIndex::new(1).unwrap(),
+                DeckIndex::new(2).unwrap(),
+                DeckIndex::new(3).unwrap(),
+            ]),
+            default_deck1(),
+            8,
+        )
+        .unwrap();
+
+        let mut game_state = GameState::new(board, [player1, player2], 5);
+
+        let input1 = ValidInput::new(
+            RawInput {
+                hand_idx: 0,
+                action: Action::Place {
+                    x: -2,
+                    y: -2,
+                    special_activated: true,
+                    rotation: Rotation::Zero,
+                },
+            },
+            &game_state.board,
+            &game_state.players[0],
+            PlayerNum::P1,
+        )
+        .unwrap();
+
+        let input2 = ValidInput::new(
+            RawInput {
+                hand_idx: 1,
+                action: Action::Place {
+                    x: -2,
+                    y: -2,
+                    special_activated: true,
+                    rotation: Rotation::Zero,
+                },
+            },
+            &game_state.board,
+            &game_state.players[1],
+            PlayerNum::P2,
+        )
+        .unwrap();
+
+        let mut rng = MockRng;
+        game_state.update(&mut rng, input1, input2);
+        let expected_board = Board::new(vec![
+            vec![p2_ink, p1_ink, p1_special_active, p1_special_active],
+            vec![p1_ink, p2_special_active, p2_ink, p1_ink],
+            vec![p2_ink, p2_ink, p2_ink, empty],
+            vec![empty, empty, p2_special, empty],
+        ])
+        .unwrap();
+        assert_eq!(game_state.turns_left(), 4);
+        assert_eq!(game_state.board, expected_board);
+        assert_eq!(game_state.players[0].special, 5);
+        assert_eq!(game_state.players[1].special, 6);
+        assert_eq!(
+            game_state.players[0].hand().get(HandIndex::new(0).unwrap()),
+            DeckIndex::new(4).unwrap()
+        );
+        assert_eq!(
+            game_state.players[1].hand().get(HandIndex::new(1).unwrap()),
             DeckIndex::new(4).unwrap()
         );
     }

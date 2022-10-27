@@ -58,10 +58,6 @@ impl CardState {
         self.card.priority()
     }
 
-    pub fn spaces(&self) -> Grid {
-        self.card.spaces()
-    }
-
     pub fn special(&self) -> u32 {
         self.card.special()
     }

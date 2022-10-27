@@ -492,7 +492,6 @@ mod tests {
 
     #[test]
     fn test_get_surrounded_inactive_specials() {
-        let oob = BoardSpace::OutOfBounds;
         let empty = BoardSpace::Empty;
         let p1_ink = BoardSpace::Ink {
             player_num: PlayerNum::P1,

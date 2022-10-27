@@ -75,8 +75,7 @@ impl Placement {
         if special_activated {
             // Check that player has enough special and that the special isn't
             // overlapping any walls or special spaces.
-            if invalid_special_placement(&selected_card, board, player, &ink_spaces[..])
-            {
+            if invalid_special_placement(&selected_card, board, player, &ink_spaces[..]) {
                 return None;
             }
 
