@@ -1,8 +1,7 @@
-use crate::tableturf::board::{self, Board, BoardPosition, BoardSpace};
+use crate::tableturf::board::{Board, BoardPosition, BoardSpace};
 use crate::tableturf::card::{Card, Grid, InkSpace, ROW_LEN};
 use crate::tableturf::hand::HandIndex;
 use crate::tableturf::player::{Player, PlayerNum};
-
 
 // Represents the number of counter-clockwise rotations applied to a Card
 #[derive(Copy, Clone)]
@@ -34,6 +33,11 @@ pub struct ValidInput {
     input: Input,
 }
 
+pub enum Input {
+    Pass,
+    Place(Placement),
+}
+
 pub struct Placement {
     // Inked spaces with absolute board positions
     ink_spaces: Vec<(BoardPosition, InkSpace)>,
@@ -42,34 +46,42 @@ pub struct Placement {
 
 impl Placement {
     pub fn new(
-        ink_spaces: Vec<(BoardPosition, InkSpace)>,
+        board_x: i32,
+        board_y: i32,
         special_activated: bool,
+        rotation: Rotation,
         hand_idx: HandIndex,
         board: &Board,
         player: &Player,
         player_num: PlayerNum,
     ) -> Option<Placement> {
         let selected_card = player.get_card(hand_idx);
+        let grid = rotate_input(&selected_card, rotation);
+        let ink_spaces = grid
+            .iter()
+            .enumerate()
+            .flat_map(|(y, row)| {
+                row.iter()
+                    .enumerate()
+                    .filter_map(move |(x, cell)| cell.map(|s| (x, y, s)))
+            })
+            .map(|(x, y, s)| {
+                board
+                    .get_absolute_position(x, y, board_x, board_y)
+                    .map(|bp| (bp, s))
+            })
+            .collect::<Option<Vec<(BoardPosition, InkSpace)>>>()?;
 
         if special_activated {
             // Check that player has enough special and that the special isn't
             // overlapping any walls or special spaces.
-            if invalid_special_placement(
-                &selected_card,
-                board,
-                player,
-                &ink_spaces[..],
-                player_num,
-            ) {
+            if invalid_special_placement(&selected_card, board, player, &ink_spaces[..])
+            {
                 return None;
             }
 
             // Check that ink placement is adjacent to one of the player's special spaces
-            if !placement_adjacent_to_special(
-                &ink_spaces[..],
-                board,
-                player_num,
-            ) {
+            if !placement_adjacent_to_special(&ink_spaces[..], board, player_num) {
                 return None;
             }
         // Check that ink placement is over empty squares
@@ -85,7 +97,7 @@ impl Placement {
         }
         Some(Placement {
             ink_spaces,
-            special_activated
+            special_activated,
         })
     }
 
@@ -105,27 +117,17 @@ impl Placement {
     }
 }
 
-fn into_board_space(ink_space: &InkSpace, player_num: PlayerNum) -> BoardSpace {
-    match ink_space {
-        InkSpace::Normal => BoardSpace::Ink { player_num },
-        InkSpace::Special => BoardSpace::Special {
-            player_num,
-            is_activated: false,
-        },
-    }
-}
-
-pub enum Input {
-    Pass,
-    Place(Placement),
-}
-
 impl ValidInput {
     // validates:
     // - board position
     // - card index in hand
     // - special availability
-    pub fn new(input: RawInput, board: &Board, player: &Player, player_num: PlayerNum) -> Option<Self> {
+    pub fn new(
+        input: RawInput,
+        board: &Board,
+        player: &Player,
+        player_num: PlayerNum,
+    ) -> Option<Self> {
         // Ensure given index is within the range of 0..4
         let hand_idx = HandIndex::new(input.hand_idx)?;
 
@@ -140,25 +142,11 @@ impl ValidInput {
                 special_activated,
                 rotation,
             } => {
-                let selected_card = player.get_card(hand_idx);
-                let grid = rotate_input(&selected_card, rotation);
-                let ink_spaces = grid
-                    .iter()
-                    .enumerate()
-                    .flat_map(|(y, row)| {
-                        row.iter()
-                            .enumerate()
-                            .filter_map(move |(x, cell)| cell.map(|s| (x, y, s)))
-                    })
-                    .map(|(x, y, s)| {
-                        board.get_absolute_position(x, y, board_x, board_y)
-                            .map(|bp| (bp, s))
-                    })
-                    .collect::<Option<Vec<(BoardPosition, InkSpace)>>>()?;
-
                 let placement = Placement::new(
-                    ink_spaces,
+                    board_x,
+                    board_y,
                     special_activated,
+                    rotation,
                     hand_idx,
                     board,
                     player,
@@ -167,7 +155,7 @@ impl ValidInput {
 
                 Some(Self {
                     hand_idx,
-                    input: Input::Place(placement)
+                    input: Input::Place(placement),
                 })
             }
         }
@@ -179,6 +167,16 @@ impl ValidInput {
 
     pub fn hand_idx(&self) -> HandIndex {
         self.hand_idx
+    }
+}
+
+fn into_board_space(ink_space: &InkSpace, player_num: PlayerNum) -> BoardSpace {
+    match ink_space {
+        InkSpace::Normal => BoardSpace::Ink { player_num },
+        InkSpace::Special => BoardSpace::Special {
+            player_num,
+            is_activated: false,
+        },
     }
 }
 
@@ -229,7 +227,6 @@ fn invalid_special_placement(
     board: &Board,
     player: &Player,
     ink_spaces: &[(BoardPosition, InkSpace)],
-    player_num: PlayerNum,
 ) -> bool {
     let not_enough_special = player.special < selected_card.special();
     not_enough_special || special_collision(ink_spaces, board)
@@ -270,8 +267,10 @@ fn rotate_input(card: &Card, rotation: Rotation) -> Grid {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tableturf::card::{InkSpace, CardSpace, Card};
-    use crate::tableturf::board::Board;
+    use crate::tableturf::board::{Board, BoardPosition};
+    use crate::tableturf::card::{Card, CardSpace, CardState, InkSpace};
+    use crate::tableturf::deck::{Deck, DeckIndex};
+    use crate::tableturf::hand::{Hand, HandIndex};
 
     #[test]
     fn test_rotate_input() {
@@ -293,51 +292,847 @@ mod tests {
             3,
         );
         let zero_rotations = rotate_input(&splattershot, Rotation::Zero);
-        assert_eq!(zero_rotations, [
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-            [e, e, i, i, s, e, e, e],
-            [e, e, i, i, i, i, e, e],
-            [e, e, i, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-        ]);
+        assert_eq!(
+            zero_rotations,
+            [
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, i, i, s, e, e, e],
+                [e, e, i, i, i, i, e, e],
+                [e, e, i, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+            ]
+        );
 
         let one_rotation = rotate_input(&splattershot, Rotation::One);
-        assert_eq!(one_rotation, [
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, i, e, e, e, e],
-            [e, e, s, i, e, e, e, e],
-            [e, e, i, i, e, e, e, e],
-            [e, e, i, i, i, e, e, e],
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-        ]);
+        assert_eq!(
+            one_rotation,
+            [
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, i, e, e, e, e],
+                [e, e, s, i, e, e, e, e],
+                [e, e, i, i, e, e, e, e],
+                [e, e, i, i, i, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+            ]
+        );
 
         let two_rotations = rotate_input(&splattershot, Rotation::Two);
-        assert_eq!(two_rotations, [
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, i, e, e],
-            [e, e, i, i, i, i, e, e],
-            [e, e, e, s, i, i, e, e],
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-        ]);
+        assert_eq!(
+            two_rotations,
+            [
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, i, e, e],
+                [e, e, i, i, i, i, e, e],
+                [e, e, e, s, i, i, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+            ]
+        );
 
         let three_rotations = rotate_input(&splattershot, Rotation::Three);
-        assert_eq!(three_rotations, [
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, i, i, i, e, e],
-            [e, e, e, e, i, i, e, e],
-            [e, e, e, e, i, s, e, e],
-            [e, e, e, e, i, e, e, e],
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
+        assert_eq!(
+            three_rotations,
+            [
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, i, i, i, e, e],
+                [e, e, e, e, i, i, e, e],
+                [e, e, e, e, i, s, e, e],
+                [e, e, e, e, i, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+            ]
+        );
+    }
+
+    fn card_states() -> [CardState; 15] {
+        let e: CardSpace = None;
+        let i: CardSpace = Some(InkSpace::Normal);
+        let s: CardSpace = Some(InkSpace::Special);
+        [
+            // Splattershot
+            CardState::new(
+                Card::new(
+                    8,
+                    [
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, i, i, s, e, e, e],
+                        [e, e, i, i, i, i, e, e],
+                        [e, e, i, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                    ],
+                    3,
+                ),
+                true,
+            ),
+            // Custom card 1
+            CardState::new(
+                Card::new(
+                    6,
+                    [
+                        [i, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                    ],
+                    3,
+                ),
+                false,
+            ),
+            // Custom card 2
+            CardState::new(
+                Card::new(
+                    9,
+                    [
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, i],
+                    ],
+                    4,
+                ),
+                false,
+            ),
+            // Blaster
+            CardState::new(
+                Card::new(
+                    8,
+                    [
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, i, e, e, i, s, e, e],
+                        [e, e, i, i, i, i, e, e],
+                        [e, e, i, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                    ],
+                    3,
+                ),
+                false,
+            ),
+            // Splat Dualies
+            CardState::new(
+                Card::new(
+                    8,
+                    [
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, i, i, i, i, e, e],
+                        [e, e, i, s, e, e, e, e],
+                        [e, i, i, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                    ],
+                    3,
+                ),
+                true,
+            ),
+            // Flooder
+            CardState::new(
+                Card::new(
+                    14,
+                    [
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, i, s, i, i, i, e, e],
+                        [e, i, e, i, e, i, e, e],
+                        [e, i, e, i, e, i, e, e],
+                        [e, i, e, i, e, i, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                    ],
+                    5,
+                ),
+                true,
+            ),
+            // Splat Roller
+            CardState::new(
+                Card::new(
+                    9,
+                    [
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, i, i, s, i, i, e, e],
+                        [e, e, e, i, i, i, e, e],
+                        [e, e, e, i, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                    ],
+                    4,
+                ),
+                true,
+            ),
+            // Tri-Stringer
+            CardState::new(
+                Card::new(
+                    11,
+                    [
+                        [e, e, e, e, e, e, e, e],
+                        [e, i, s, i, i, i, e, e],
+                        [e, i, e, i, e, e, e, e],
+                        [e, i, i, e, e, e, e, e],
+                        [e, i, e, e, e, e, e, e],
+                        [e, i, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                    ],
+                    4,
+                ),
+                true,
+            ),
+            // Chum
+            CardState::new(
+                Card::new(
+                    5,
+                    [
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, i, e, e, e, e],
+                        [e, e, s, i, e, e, e, e],
+                        [e, e, e, i, i, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                    ],
+                    2,
+                ),
+                true,
+            ),
+            // Splat Charger
+            CardState::new(
+                Card::new(
+                    8,
+                    [
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [i, i, i, i, i, i, i, e],
+                        [e, e, s, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                    ],
+                    3,
+                ),
+                true,
+            ),
+            // Splatana Wiper
+            CardState::new(
+                Card::new(
+                    5,
+                    [
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, s, e, e, e, e],
+                        [e, e, e, i, e, e, e, e],
+                        [e, e, e, i, e, e, e, e],
+                        [e, e, e, i, e, e, e, e],
+                        [e, e, e, i, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                    ],
+                    2,
+                ),
+                true,
+            ),
+            // SquidForce
+            CardState::new(
+                Card::new(
+                    10,
+                    [
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, i, e, e, e, e],
+                        [e, e, e, i, e, e, e, e],
+                        [e, i, i, i, i, i, e, e],
+                        [e, e, e, i, s, e, e, e],
+                        [e, e, e, i, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                    ],
+                    4,
+                ),
+                true,
+            ),
+            // Heavy Splatling
+            CardState::new(
+                Card::new(
+                    12,
+                    [
+                        [e, e, e, e, e, e, e, e],
+                        [e, i, i, e, e, e, e, e],
+                        [e, i, i, e, e, e, e, e],
+                        [e, i, i, e, e, e, e, e],
+                        [e, e, i, i, e, e, e, e],
+                        [e, e, e, i, s, e, e, e],
+                        [e, e, e, e, i, i, e, e],
+                        [e, e, e, e, e, e, e, e],
+                    ],
+                    5,
+                ),
+                true,
+            ),
+            // Splat Bomb
+            CardState::new(
+                Card::new(
+                    3,
+                    [
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, s, e, e, e],
+                        [e, e, e, i, i, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                    ],
+                    1,
+                ),
+                false,
+            ),
+            // Marigold
+            CardState::new(
+                Card::new(
+                    15,
+                    [
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, i, e, e, e, e],
+                        [e, e, i, i, i, e, e, e],
+                        [e, i, e, i, e, i, e, e],
+                        [e, i, i, s, i, i, e, e],
+                        [e, e, i, i, i, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                        [e, e, e, e, e, e, e, e],
+                    ],
+                    5,
+                ),
+                true,
+            ),
+        ]
+    }
+
+    fn default_deck() -> Deck {
+        let mut card_states = card_states();
+        card_states[0].is_available = false;
+        card_states[1].is_available = false;
+        card_states[2].is_available = false;
+        card_states[3].is_available = false;
+        Deck::new(card_states)
+    }
+
+    #[test]
+    fn test_construct_placement() {
+        // Test placing ink on top of empty spaces
+        let empty = BoardSpace::Empty;
+        let p1_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P1,
+        };
+        let p1_special = BoardSpace::Special {
+            player_num: PlayerNum::P1,
+            is_activated: false,
+        };
+        let board = Board::new(vec![
+            vec![empty, empty, empty],
+            vec![empty, empty, p1_ink],
+            vec![empty, empty, empty],
+        ])
+        .unwrap();
+        let hand = Hand::new([
+            DeckIndex::new(13).unwrap(),
+            DeckIndex::new(1).unwrap(),
+            DeckIndex::new(2).unwrap(),
+            DeckIndex::new(3).unwrap(),
         ]);
+        let special = 5;
+        let player = Player::new(hand, default_deck(), special).unwrap();
+        let placement = Placement::new(
+            -3,
+            -3,
+            false,
+            Rotation::Two,
+            HandIndex::new(0).unwrap(),
+            &board,
+            &player,
+            PlayerNum::P1,
+        );
+        assert!(placement.is_some());
+        let placement = placement.unwrap();
+        assert_eq!(placement.ink_spaces.len(), 3);
+        assert_eq!(
+            placement.ink_spaces[0].0,
+            BoardPosition::new(&board, 0, 0).unwrap()
+        );
+        assert_eq!(
+            placement.ink_spaces[1].0,
+            BoardPosition::new(&board, 1, 0).unwrap()
+        );
+        assert_eq!(
+            placement.ink_spaces[2].0,
+            BoardPosition::new(&board, 0, 1).unwrap()
+        );
+
+        // Test placing ink on top of an inked space
+        let board = Board::new(vec![
+            vec![empty, p1_ink, empty],
+            vec![empty, p1_ink, empty],
+            vec![empty, empty, empty],
+        ])
+        .unwrap();
+        let placement = Placement::new(
+            -3,
+            -3,
+            false,
+            Rotation::Two,
+            HandIndex::new(0).unwrap(),
+            &board,
+            &player,
+            PlayerNum::P1,
+        );
+        assert!(placement.is_none());
+
+        // Test placing special on top of an inked space
+        let board = Board::new(vec![
+            vec![empty, p1_ink, empty],
+            vec![empty, p1_special, empty],
+            vec![empty, empty, empty],
+        ])
+        .unwrap();
+        let placement = Placement::new(
+            -3,
+            -3,
+            true,
+            Rotation::Two,
+            HandIndex::new(0).unwrap(),
+            &board,
+            &player,
+            PlayerNum::P1,
+        );
+        assert!(placement.is_some());
+
+        let player_no_special = Player::new(hand, default_deck(), 0).unwrap();
+        // Test placing special with insufficient special meter
+        let board = Board::new(vec![
+            vec![empty, p1_ink, empty],
+            vec![empty, p1_special, empty],
+            vec![empty, empty, empty],
+        ])
+        .unwrap();
+        let placement = Placement::new(
+            -3,
+            -3,
+            true,
+            Rotation::Two,
+            HandIndex::new(0).unwrap(),
+            &board,
+            &player_no_special,
+            PlayerNum::P1,
+        );
+        assert!(placement.is_none());
+
+        // Test placing special on top of a special space
+        let board = Board::new(vec![
+            vec![empty, p1_special, empty],
+            vec![empty, p1_special, empty],
+            vec![empty, empty, empty],
+        ])
+        .unwrap();
+        let placement = Placement::new(
+            -3,
+            -3,
+            true,
+            Rotation::Two,
+            HandIndex::new(0).unwrap(),
+            &board,
+            &player,
+            PlayerNum::P1,
+        );
+        assert!(placement.is_none());
+
+        // Test placing ink without any ink nearby
+        let board = Board::new(vec![
+            vec![empty, empty, empty],
+            vec![empty, empty, empty],
+            vec![empty, empty, empty],
+        ])
+        .unwrap();
+        let placement = Placement::new(
+            -3,
+            -3,
+            false,
+            Rotation::Two,
+            HandIndex::new(0).unwrap(),
+            &board,
+            &player,
+            PlayerNum::P1,
+        );
+        assert!(placement.is_none());
+
+        // Test placing special without any special nearby
+        let board = Board::new(vec![
+            vec![empty, empty, empty],
+            vec![empty, p1_ink, empty],
+            vec![empty, empty, empty],
+        ])
+        .unwrap();
+        let placement = Placement::new(
+            -3,
+            -3,
+            true,
+            Rotation::Two,
+            HandIndex::new(0).unwrap(),
+            &board,
+            &player,
+            PlayerNum::P1,
+        );
+        assert!(placement.is_none());
+
+        // Test placing ink with a special space nearby
+        let board = Board::new(vec![
+            vec![empty, empty, empty],
+            vec![empty, p1_special, empty],
+            vec![empty, empty, empty],
+        ])
+        .unwrap();
+        let placement = Placement::new(
+            -3,
+            -3,
+            false,
+            Rotation::Two,
+            HandIndex::new(0).unwrap(),
+            &board,
+            &player,
+            PlayerNum::P1,
+        );
+        assert!(placement.is_some());
+    }
+
+    #[test]
+    fn test_placement_collision() {
+        let empty = BoardSpace::Empty;
+        let p1_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P1,
+        };
+        let board = Board::new(vec![
+            vec![empty, empty, empty],
+            vec![empty, empty, empty],
+            vec![empty, empty, empty],
+        ])
+        .unwrap();
+        let ink_spaces = vec![
+            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+        ];
+        assert!(!placement_collision(&ink_spaces, &board));
+
+        let board = Board::new(vec![
+            vec![empty, p1_ink, empty],
+            vec![empty, empty, empty],
+            vec![empty, empty, empty],
+        ])
+        .unwrap();
+        let ink_spaces = vec![
+            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+        ];
+        assert!(placement_collision(&ink_spaces, &board));
+    }
+
+    #[test]
+    fn test_placement_adjacent_to_ink() {
+        let empty = BoardSpace::Empty;
+        let p1_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P1,
+        };
+        let p1_special = BoardSpace::Special {
+            player_num: PlayerNum::P1,
+            is_activated: false,
+        };
+        let board = Board::new(vec![
+            vec![empty, empty, empty],
+            vec![empty, empty, p1_ink],
+            vec![empty, empty, empty],
+        ])
+        .unwrap();
+        let ink_spaces = vec![
+            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+        ];
+        assert!(placement_adjacent_to_ink(
+            &ink_spaces,
+            &board,
+            PlayerNum::P1
+        ));
+
+        let board = Board::new(vec![
+            vec![empty, empty, empty],
+            vec![empty, empty, p1_special],
+            vec![empty, empty, empty],
+        ])
+        .unwrap();
+        let ink_spaces = vec![
+            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+        ];
+        assert!(placement_adjacent_to_ink(
+            &ink_spaces,
+            &board,
+            PlayerNum::P1
+        ));
+
+        let board = Board::new(vec![
+            vec![empty, empty, empty],
+            vec![empty, empty, empty],
+            vec![empty, empty, empty],
+        ])
+        .unwrap();
+        let ink_spaces = vec![
+            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+        ];
+        assert!(!placement_adjacent_to_ink(
+            &ink_spaces,
+            &board,
+            PlayerNum::P1
+        ));
+    }
+
+    #[test]
+    fn test_special_collision() {
+        let empty = BoardSpace::Empty;
+        let wall = BoardSpace::Wall;
+        let p1_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P1,
+        };
+        let board = Board::new(vec![
+            vec![empty, empty, empty],
+            vec![empty, empty, empty],
+            vec![empty, empty, empty],
+        ])
+        .unwrap();
+        let ink_spaces = vec![
+            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+        ];
+        assert!(!special_collision(&ink_spaces, &board));
+
+        let board = Board::new(vec![
+            vec![empty, p1_ink, empty],
+            vec![empty, empty, empty],
+            vec![empty, empty, empty],
+        ])
+        .unwrap();
+        let ink_spaces = vec![
+            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+        ];
+        assert!(!special_collision(&ink_spaces, &board));
+
+        let board = Board::new(vec![
+            vec![empty, wall, empty],
+            vec![empty, empty, empty],
+            vec![empty, empty, empty],
+        ])
+        .unwrap();
+        let ink_spaces = vec![
+            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+        ];
+        assert!(special_collision(&ink_spaces, &board));
+    }
+
+    #[test]
+    fn test_placement_adjacent_to_special() {
+        let empty = BoardSpace::Empty;
+        let p1_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P1,
+        };
+        let p1_special = BoardSpace::Special {
+            player_num: PlayerNum::P1,
+            is_activated: false,
+        };
+        let board = Board::new(vec![
+            vec![empty, empty, empty],
+            vec![empty, empty, p1_ink],
+            vec![empty, empty, empty],
+        ])
+        .unwrap();
+        let ink_spaces = vec![
+            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+        ];
+        assert!(!placement_adjacent_to_special(
+            &ink_spaces,
+            &board,
+            PlayerNum::P1
+        ));
+
+        let board = Board::new(vec![
+            vec![empty, empty, empty],
+            vec![empty, empty, p1_special],
+            vec![empty, empty, empty],
+        ])
+        .unwrap();
+        let ink_spaces = vec![
+            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+        ];
+        assert!(placement_adjacent_to_special(
+            &ink_spaces,
+            &board,
+            PlayerNum::P1
+        ));
+
+        let board = Board::new(vec![
+            vec![empty, empty, empty],
+            vec![empty, empty, empty],
+            vec![empty, empty, empty],
+        ])
+        .unwrap();
+        let ink_spaces = vec![
+            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+        ];
+        assert!(!placement_adjacent_to_special(
+            &ink_spaces,
+            &board,
+            PlayerNum::P1
+        ));
+    }
+
+    #[test]
+    fn test_construct_valid_input() {
+        let empty = BoardSpace::Empty;
+        let p1_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P1,
+        };
+        let board = Board::new(vec![
+            vec![empty, empty, empty],
+            vec![empty, p1_ink, empty],
+            vec![empty, empty, empty],
+        ])
+        .unwrap();
+        let hand = Hand::new([
+            DeckIndex::new(13).unwrap(),
+            DeckIndex::new(1).unwrap(),
+            DeckIndex::new(2).unwrap(),
+            DeckIndex::new(3).unwrap(),
+        ]);
+        let special = 5;
+        let player = Player::new(hand, default_deck(), special).unwrap();
+        let input = ValidInput::new(
+            RawInput {
+                hand_idx: 0,
+                action: Action::Pass,
+            },
+            &board,
+            &player,
+            PlayerNum::P1,
+        );
+        assert!(input.is_some());
+
+        let input = ValidInput::new(
+            RawInput {
+                hand_idx: 5,
+                action: Action::Pass,
+            },
+            &board,
+            &player,
+            PlayerNum::P1,
+        );
+        assert!(input.is_none());
+
+        let input = ValidInput::new(
+            RawInput {
+                hand_idx: 2,
+                action: Action::Place {
+                    x: -8,
+                    y: -8,
+                    special_activated: false,
+                    rotation: Rotation::Zero,
+                },
+            },
+            &board,
+            &player,
+            PlayerNum::P1,
+        );
+        assert!(input.is_none());
+
+        let input = ValidInput::new(
+            RawInput {
+                hand_idx: 2,
+                action: Action::Place {
+                    x: -7,
+                    y: -7,
+                    special_activated: false,
+                    rotation: Rotation::Zero,
+                },
+            },
+            &board,
+            &player,
+            PlayerNum::P1,
+        );
+        assert!(input.is_some());
+
+        let input = ValidInput::new(
+            RawInput {
+                hand_idx: 1,
+                action: Action::Place {
+                    x: 2,
+                    y: 2,
+                    special_activated: false,
+                    rotation: Rotation::Zero,
+                },
+            },
+            &board,
+            &player,
+            PlayerNum::P1,
+        );
+        assert!(input.is_some());
+
+        let input = ValidInput::new(
+            RawInput {
+                hand_idx: 1,
+                action: Action::Place {
+                    x: 3,
+                    y: 2,
+                    special_activated: false,
+                    rotation: Rotation::Zero,
+                },
+            },
+            &board,
+            &player,
+            PlayerNum::P1,
+        );
+        assert!(input.is_none());
     }
 }

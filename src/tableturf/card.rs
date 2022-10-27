@@ -1,5 +1,3 @@
-use crate::tableturf::board::BoardSpace;
-
 pub const ROW_LEN: usize = 8;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -24,7 +22,7 @@ impl Card {
         Card {
             priority,
             spaces,
-            special
+            special,
         }
     }
 

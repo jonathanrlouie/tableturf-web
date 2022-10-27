@@ -3,9 +3,13 @@ use crate::tableturf::deck::DeckIndex;
 pub use self::hand_idx::{HandIndex, HAND_SIZE};
 
 #[derive(Copy, Clone)]
-pub struct Hand(pub [DeckIndex; HAND_SIZE]);
+pub struct Hand([DeckIndex; HAND_SIZE]);
 
 impl Hand {
+    pub fn new(hand: [DeckIndex; HAND_SIZE]) -> Self {
+        Hand(hand)
+    }
+
     pub fn get(&self, idx: HandIndex) -> DeckIndex {
         self.0[idx.get()]
     }

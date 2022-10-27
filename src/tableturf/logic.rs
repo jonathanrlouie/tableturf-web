@@ -1,4 +1,3 @@
-
 /*
 rough draft of the main game logic
 fn main_logic() {
@@ -10,4 +9,3 @@ fn main_logic() {
     let outcome = game_state.check_winner()
 }
 */
-

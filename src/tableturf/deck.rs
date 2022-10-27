@@ -3,7 +3,7 @@ pub use self::deck_idx::{DeckIndex, DECK_SIZE};
 use crate::tableturf::card::CardState;
 
 pub trait DrawRng {
-    fn draw<T, I: Iterator<Item=T> + Sized>(&mut self, iter: I) -> Option<T>;
+    fn draw<T, I: Iterator<Item = T> + Sized>(&mut self, iter: I) -> Option<T>;
 }
 
 #[derive(Copy, Clone)]
@@ -18,20 +18,12 @@ impl Deck {
         &self.0[idx.get()]
     }
 
-    pub fn set_card_state(&mut self, idx: DeckIndex, card_state: CardState) {
-        self.0[idx.get()] = card_state;
-    }
-
     pub fn set_unavailable(&mut self, idx: DeckIndex) {
         self.0[idx.get()].is_available = false;
     }
 
     pub fn draw_card<R: DrawRng>(&mut self, rng: &mut R) -> Option<DeckIndex> {
-        let (idx, _) = rng.draw(self
-            .0
-            .iter()
-            .enumerate()
-            .filter(|(_, cs)| cs.is_available))?;
+        let (idx, _) = rng.draw(self.0.iter().enumerate().filter(|(_, cs)| cs.is_available))?;
         DeckIndex::new(idx)
     }
 }
@@ -39,7 +31,7 @@ impl Deck {
 mod deck_idx {
     pub const DECK_SIZE: usize = 15;
 
-    #[derive(Copy, Clone)]
+    #[derive(Copy, Clone, Debug, PartialEq)]
     pub struct DeckIndex(usize);
 
     impl DeckIndex {
@@ -78,7 +70,7 @@ mod tests {
     struct MockRng;
 
     impl DrawRng for MockRng {
-        fn draw<T, I: Iterator<Item=T> + Sized>(&mut self, mut iter: I) -> Option<T> {
+        fn draw<T, I: Iterator<Item = T> + Sized>(&mut self, mut iter: I) -> Option<T> {
             iter.next()
         }
     }
@@ -96,19 +88,9 @@ mod tests {
             [empty, empty, empty, empty, empty, empty, empty, empty],
             [empty, empty, empty, empty, empty, empty, empty, empty],
         ];
-        let card = Card::new(
-            0,
-            spaces,
-            0
-        );
-        let available_card = CardState::new(
-                card,
-                true
-            );
-        let unavailable_card = CardState::new(
-                card,
-                false
-            );
+        let card = Card::new(0, spaces, 0);
+        let available_card = CardState::new(card, true);
+        let unavailable_card = CardState::new(card, false);
         let mut deck = Deck([
             available_card,
             available_card,

@@ -216,7 +216,6 @@ impl Board {
         let y: usize = y.try_into().ok()?;
         BoardPosition::new(self, x, y)
     }
-
 }
 
 #[cfg(test)]
@@ -237,9 +236,8 @@ mod tests {
         assert!(uneven_rows.is_none());
 
         let too_wide_board = Board::new(vec![vec![
-            wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-            wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-            wall, wall, wall, wall, wall, wall
+            wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
         ]]);
         assert!(too_wide_board.is_none());
 
@@ -280,31 +278,106 @@ mod tests {
         assert!(valid_board.is_some());
 
         let max_valid_board = Board::new(vec![
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
-            vec![wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
         ]);
         assert!(max_valid_board.is_some());
     }
@@ -328,7 +401,9 @@ mod tests {
         let oob = BoardSpace::OutOfBounds;
         let empty = BoardSpace::Empty;
         let board = Board::new(vec![vec![empty, empty], vec![empty, empty]]).unwrap();
-        let spaces = BoardPosition::new(&board, 0, 0).unwrap().surrounding_spaces(&board);
+        let spaces = BoardPosition::new(&board, 0, 0)
+            .unwrap()
+            .surrounding_spaces(&board);
         assert_eq!(spaces[0], oob);
         assert_eq!(spaces[1], oob);
         assert_eq!(spaces[2], oob);
@@ -347,7 +422,8 @@ mod tests {
             vec![empty, wall, empty],
             vec![wall, wall, empty],
             vec![empty, empty, empty],
-        ]).unwrap();
+        ])
+        .unwrap();
         let surrounded_pos = BoardPosition::new(&board, 0, 0).unwrap();
         assert!(surrounded_pos.is_surrounded(&board));
         let not_surrounded_pos = BoardPosition::new(&board, 1, 0).unwrap();
@@ -357,14 +433,22 @@ mod tests {
     #[test]
     fn test_adjacent_to_ink() {
         let empty = BoardSpace::Empty;
-        let p1_ink = BoardSpace::Ink{ player_num: PlayerNum::P1 };
-        let p1_special = BoardSpace::Special{ player_num: PlayerNum::P1, is_activated: false };
-        let p2_ink = BoardSpace::Ink{ player_num: PlayerNum::P2 };
+        let p1_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P1,
+        };
+        let p1_special = BoardSpace::Special {
+            player_num: PlayerNum::P1,
+            is_activated: false,
+        };
+        let p2_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P2,
+        };
         let board = Board::new(vec![
             vec![empty, p1_ink, empty],
             vec![p2_ink, empty, p1_special],
             vec![empty, empty, empty],
-        ]).unwrap();
+        ])
+        .unwrap();
         let pos1 = BoardPosition::new(&board, 0, 0).unwrap();
         assert!(pos1.adjacent_to_ink(&board, PlayerNum::P1));
         let pos2 = BoardPosition::new(&board, 0, 2).unwrap();
@@ -376,15 +460,26 @@ mod tests {
     #[test]
     fn test_adjacent_to_special() {
         let empty = BoardSpace::Empty;
-        let p1_ink = BoardSpace::Ink{ player_num: PlayerNum::P1 };
-        let p1_special = BoardSpace::Special{ player_num: PlayerNum::P1, is_activated: false };
-        let p2_ink = BoardSpace::Ink{ player_num: PlayerNum::P2 };
-        let p2_special = BoardSpace::Special{ player_num: PlayerNum::P2, is_activated: false };
+        let p1_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P1,
+        };
+        let p1_special = BoardSpace::Special {
+            player_num: PlayerNum::P1,
+            is_activated: false,
+        };
+        let p2_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P2,
+        };
+        let p2_special = BoardSpace::Special {
+            player_num: PlayerNum::P2,
+            is_activated: false,
+        };
         let board = Board::new(vec![
             vec![empty, p1_ink, empty],
             vec![p2_ink, empty, p1_special],
             vec![empty, p2_special, empty],
-        ]).unwrap();
+        ])
+        .unwrap();
         let pos1 = BoardPosition::new(&board, 0, 0).unwrap();
         assert!(!pos1.adjacent_to_special(&board, PlayerNum::P1));
         let pos2 = BoardPosition::new(&board, 0, 2).unwrap();
@@ -399,30 +494,41 @@ mod tests {
     fn test_get_surrounded_inactive_specials() {
         let oob = BoardSpace::OutOfBounds;
         let empty = BoardSpace::Empty;
-        let p1_ink = BoardSpace::Ink{ player_num: PlayerNum::P1 };
-        let p1_special = BoardSpace::Special{ player_num: PlayerNum::P1, is_activated: false };
-        let p2_ink = BoardSpace::Ink{ player_num: PlayerNum::P2 };
+        let p1_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P1,
+        };
+        let p1_special = BoardSpace::Special {
+            player_num: PlayerNum::P1,
+            is_activated: false,
+        };
+        let p2_ink = BoardSpace::Ink {
+            player_num: PlayerNum::P2,
+        };
         let board = Board::new(vec![vec![empty, empty], vec![empty, empty]]).unwrap();
         let no_spaces = board.get_surrounded_inactive_specials(PlayerNum::P1);
         assert!(no_spaces.is_empty());
 
-        let special_surrounded = Board::new(vec![vec![p1_special, p1_ink], vec![p1_ink, p1_ink]]).unwrap();
+        let special_surrounded =
+            Board::new(vec![vec![p1_special, p1_ink], vec![p1_ink, p1_ink]]).unwrap();
         let one_special = special_surrounded.get_surrounded_inactive_specials(PlayerNum::P1);
         assert_eq!(one_special.len(), 1);
         assert_eq!(one_special[0].0.x(), 0);
         assert_eq!(one_special[0].0.y(), 0);
 
-        let off_by_one_board = Board::new(vec![vec![p1_special, p1_ink], vec![p1_ink, empty]]).unwrap();
+        let off_by_one_board =
+            Board::new(vec![vec![p1_special, p1_ink], vec![p1_ink, empty]]).unwrap();
         let no_special = off_by_one_board.get_surrounded_inactive_specials(PlayerNum::P1);
         assert!(no_special.is_empty());
 
-        let enemy_ink_board = Board::new(vec![vec![p1_special, p1_ink], vec![p1_ink, p2_ink]]).unwrap();
+        let enemy_ink_board =
+            Board::new(vec![vec![p1_special, p1_ink], vec![p1_ink, p2_ink]]).unwrap();
         let one_special = enemy_ink_board.get_surrounded_inactive_specials(PlayerNum::P1);
         assert_eq!(one_special.len(), 1);
         assert_eq!(one_special[0].0.x(), 0);
         assert_eq!(one_special[0].0.y(), 0);
 
-        let multiple_specials_board = Board::new(vec![vec![p1_special, p1_ink], vec![p1_ink, p1_special]]).unwrap();
+        let multiple_specials_board =
+            Board::new(vec![vec![p1_special, p1_ink], vec![p1_ink, p1_special]]).unwrap();
         let two_specials = multiple_specials_board.get_surrounded_inactive_specials(PlayerNum::P1);
         assert_eq!(two_specials.len(), 2);
         assert_eq!(two_specials[0].0.x(), 0);
@@ -467,6 +573,12 @@ mod tests {
         let board = Board::new(vec![vec![empty, empty], vec![empty, empty]]).unwrap();
         let valid_pos = board.get_absolute_position(7, 7, -7, -7);
         assert!(valid_pos.is_some());
-        assert_eq!(valid_pos.unwrap(), BoardPosition::new(&board, 0, 0).unwrap());
+        assert_eq!(
+            valid_pos.unwrap(),
+            BoardPosition::new(&board, 0, 0).unwrap()
+        );
+
+        let invalid_pos = board.get_absolute_position(7, 7, -8, -8);
+        assert!(invalid_pos.is_none());
     }
 }
