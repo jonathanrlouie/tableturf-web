@@ -1,4 +1,4 @@
-use std::ops::{Index, IndexMut};
+use std::ops::Index;
 
 use crate::tableturf::card::CardState;
 
@@ -75,6 +75,7 @@ impl Index<DeckIndex> for Deck {
     }
 }
 
+/*
 impl IndexMut<DeckIndex> for Deck {
     fn index_mut(&mut self, index: DeckIndex) -> &mut Self::Output {
         match index {
@@ -96,18 +97,16 @@ impl IndexMut<DeckIndex> for Deck {
         }
     }
 }
+*/
 
 impl Deck {
     pub fn new(deck: [CardState; DECK_SIZE]) -> Self {
         Deck(deck)
     }
 
-    pub fn set_unavailable(&mut self, idx: DeckIndex) {
-        self[idx].is_available = false;
-    }
-
     pub fn draw_card<R: DrawRng>(&mut self, rng: &mut R) -> Option<DeckIndex> {
         let (idx, _) = rng.draw(self.0.iter().enumerate().filter(|(_, cs)| cs.is_available))?;
+        self.0[idx].is_available = false;
         parse_idx(idx)
     }
 }

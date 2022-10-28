@@ -80,7 +80,6 @@ impl Player {
     pub fn replace_card<R: DrawRng>(&mut self, idx: HandIndex, rng: &mut R) {
         // Don't replace the card if we're out of cards, since the game is over anyway.
         if let Some(deck_idx) = self.deck.draw_card(rng) {
-            self.deck.set_unavailable(deck_idx);
             self.hand[idx] = deck_idx;
         }
     }
