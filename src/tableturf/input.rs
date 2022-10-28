@@ -46,8 +46,7 @@ pub struct Placement {
 
 impl Placement {
     pub fn new(
-        board_x: i32,
-        board_y: i32,
+        board_position: (i32, i32),
         special_activated: bool,
         rotation: Rotation,
         hand_idx: HandIndex,
@@ -55,6 +54,7 @@ impl Placement {
         player: &Player,
         player_num: PlayerNum,
     ) -> Option<Placement> {
+        let (board_x, board_y) = board_position;
         let selected_card = player.get_card(hand_idx);
         let grid = rotate_input(&selected_card, rotation);
         let ink_spaces = grid
@@ -148,8 +148,7 @@ impl ValidInput {
                 rotation,
             } => {
                 let placement = Placement::new(
-                    board_x,
-                    board_y,
+                    (board_x, board_y),
                     special_activated,
                     rotation,
                     hand_idx,
@@ -665,8 +664,7 @@ mod tests {
         let special = 5;
         let player = Player::new(hand, default_deck(), special).unwrap();
         let placement = Placement::new(
-            -3,
-            -3,
+            (-3, -3),
             false,
             Rotation::Two,
             HandIndex::H1,
@@ -698,8 +696,7 @@ mod tests {
         ])
         .unwrap();
         let placement = Placement::new(
-            -3,
-            -3,
+            (-3, -3),
             false,
             Rotation::Two,
             HandIndex::H1,
@@ -718,8 +715,7 @@ mod tests {
         ])
         .unwrap();
         let placement = Placement::new(
-            -3,
-            -3,
+            (-3, -3),
             true,
             Rotation::Two,
             HandIndex::H1,
@@ -738,8 +734,7 @@ mod tests {
         ])
         .unwrap();
         let placement = Placement::new(
-            -3,
-            -3,
+            (-3, -3),
             true,
             Rotation::Two,
             HandIndex::H1,
@@ -757,8 +752,7 @@ mod tests {
         ])
         .unwrap();
         let placement = Placement::new(
-            -3,
-            -3,
+            (-3, -3),
             true,
             Rotation::Two,
             HandIndex::H1,
@@ -776,8 +770,7 @@ mod tests {
         ])
         .unwrap();
         let placement = Placement::new(
-            -3,
-            -3,
+            (-3, -3),
             false,
             Rotation::Two,
             HandIndex::H1,
@@ -795,8 +788,7 @@ mod tests {
         ])
         .unwrap();
         let placement = Placement::new(
-            -3,
-            -3,
+            (-3, -3),
             true,
             Rotation::Two,
             HandIndex::H1,
@@ -814,8 +806,7 @@ mod tests {
         ])
         .unwrap();
         let placement = Placement::new(
-            -3,
-            -3,
+            (-3, -3),
             false,
             Rotation::Two,
             HandIndex::H1,

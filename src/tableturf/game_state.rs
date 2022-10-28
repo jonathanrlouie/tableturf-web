@@ -3,7 +3,7 @@ use crate::tableturf::card::InkSpace;
 use crate::tableturf::deck::DrawRng;
 use crate::tableturf::hand::HandIndex;
 use crate::tableturf::input::{Input, Placement, ValidInput};
-use crate::tableturf::player::{Player, PlayerNum};
+use crate::tableturf::player::{Player, PlayerNum, Players};
 use rand::prelude::IteratorRandom;
 use rand::rngs::ThreadRng;
 use std::cmp::Ordering;
@@ -26,7 +26,7 @@ pub enum Outcome {
 
 pub struct GameState {
     board: Board,
-    players: [Player; 2],
+    players: Players,
     turns_left: u32,
 }
 
@@ -34,7 +34,7 @@ impl GameState {
     pub fn new(board: Board, players: [Player; 2], turns_left: u32) -> Self {
         GameState {
             board,
-            players,
+            players: Players::new(players),
             turns_left,
         }
     }
@@ -61,25 +61,25 @@ impl GameState {
         let hand_idx2 = input2.hand_idx();
         match (input1.get(), input2.get()) {
             (Input::Pass, Input::Pass) => {
-                self.players[0].special += 1;
-                self.players[1].special += 1;
+                self.players[PlayerNum::P1].special += 1;
+                self.players[PlayerNum::P2].special += 1;
             }
             (Input::Place(placement), Input::Pass) => {
-                self.players[1].special += 1;
+                self.players[PlayerNum::P2].special += 1;
                 self.place(hand_idx1, placement, PlayerNum::P1);
             }
             (Input::Pass, Input::Place(placement)) => {
-                self.players[0].special += 1;
+                self.players[PlayerNum::P1].special += 1;
                 self.place(hand_idx2, placement, PlayerNum::P2);
             }
             (Input::Place(placement1), Input::Place(placement2)) => {
                 self.place_both(hand_idx1, hand_idx2, placement1, placement2);
             }
         };
-        let player1 = &mut self.players[0];
+        let player1 = &mut self.players[PlayerNum::P1];
         player1.replace_card(hand_idx1, rng);
         update_special_gauge(player1, PlayerNum::P1, &mut self.board);
-        let player2 = &mut self.players[1];
+        let player2 = &mut self.players[PlayerNum::P2];
         player2.replace_card(hand_idx2, rng);
         update_special_gauge(player2, PlayerNum::P2, &mut self.board);
 
@@ -89,7 +89,7 @@ impl GameState {
     }
 
     fn place(&mut self, hand_idx: HandIndex, placement: Placement, player_num: PlayerNum) {
-        let player = &mut self.players[player_num.idx()];
+        let player = &mut self.players[player_num];
         player.spend_special(&placement, hand_idx);
         self.board.set_ink(placement.into_board_spaces(player_num));
     }
@@ -102,10 +102,10 @@ impl GameState {
         placement2: Placement,
     ) {
         // Spend special, if activated
-        let player1 = &mut self.players[0];
+        let player1 = &mut self.players[PlayerNum::P1];
         let priority1 = player1.deck()[player1.hand()[hand_idx1]].priority();
         player1.spend_special(&placement1, hand_idx1);
-        let player2 = &mut self.players[1];
+        let player2 = &mut self.players[PlayerNum::P2];
         let priority2 = player2.deck()[player2.hand()[hand_idx2]].priority();
         player2.spend_special(&placement2, hand_idx2);
 
@@ -579,11 +579,7 @@ mod tests {
         )
         .unwrap();
 
-        GameState {
-            board,
-            players: [player1, player2],
-            turns_left: 12,
-        }
+        GameState::new(board, [player1, player2], 12)
     }
 
     fn game_state_offset() -> GameState {
@@ -708,13 +704,12 @@ mod tests {
         game_state.place(
             hand_idx,
             Placement::new(
-                -2,
-                -2,
+                (-2, -2),
                 false,
                 Rotation::Zero,
                 hand_idx,
                 &game_state.board,
-                &game_state.players[0],
+                &game_state.players[PlayerNum::P1],
                 PlayerNum::P1,
             )
             .unwrap(),
@@ -757,24 +752,22 @@ mod tests {
             hand_idx,
             hand_idx,
             Placement::new(
-                -2,
-                -2,
+                (-2, -2),
                 false,
                 Rotation::Zero,
                 hand_idx,
                 &game_state1.board,
-                &game_state1.players[0],
+                &game_state1.players[PlayerNum::P1],
                 PlayerNum::P1,
             )
             .unwrap(),
             Placement::new(
-                -2,
-                -2,
+                (-2, -2),
                 false,
                 Rotation::Zero,
                 hand_idx,
                 &game_state1.board,
-                &game_state1.players[1],
+                &game_state1.players[PlayerNum::P2],
                 PlayerNum::P2,
             )
             .unwrap(),
@@ -797,24 +790,22 @@ mod tests {
             hand_idx,
             hand_idx,
             Placement::new(
-                -2,
-                -2,
+                (-2, -2),
                 false,
                 Rotation::Zero,
                 hand_idx,
                 board_offset,
-                &game_state_offset.players[0],
+                &game_state_offset.players[PlayerNum::P1],
                 PlayerNum::P1,
             )
             .unwrap(),
             Placement::new(
-                -1,
-                -2,
+                (-1, -2),
                 false,
                 Rotation::Zero,
                 hand_idx,
                 board_offset,
-                &game_state_offset.players[1],
+                &game_state_offset.players[PlayerNum::P2],
                 PlayerNum::P2,
             )
             .unwrap(),
@@ -835,24 +826,22 @@ mod tests {
             hand_idx,
             hand_idx,
             Placement::new(
-                -2,
-                -2,
+                (-2, -2),
                 false,
                 Rotation::Zero,
                 hand_idx,
                 &game_state2.board,
-                &game_state2.players[0],
+                &game_state2.players[PlayerNum::P1],
                 PlayerNum::P1,
             )
             .unwrap(),
             Placement::new(
-                -2,
-                -3,
+                (-2, -3),
                 false,
                 Rotation::Zero,
                 hand_idx,
                 &game_state2.board,
-                &game_state2.players[1],
+                &game_state2.players[PlayerNum::P2],
                 PlayerNum::P2,
             )
             .unwrap(),
@@ -1051,7 +1040,7 @@ mod tests {
                 action: Action::Pass,
             },
             &game_state.board,
-            &game_state.players[0],
+            &game_state.players[PlayerNum::P1],
             PlayerNum::P1,
         )
         .unwrap();
@@ -1062,7 +1051,7 @@ mod tests {
                 action: Action::Pass,
             },
             &game_state.board,
-            &game_state.players[1],
+            &game_state.players[PlayerNum::P2],
             PlayerNum::P2,
         )
         .unwrap();
@@ -1078,10 +1067,16 @@ mod tests {
         .unwrap();
         assert_eq!(game_state.turns_left(), 11);
         assert_eq!(game_state.board, expected_board);
-        assert_eq!(game_state.players[0].special, 1);
-        assert_eq!(game_state.players[1].special, 1);
-        assert_eq!(game_state.players[0].hand()[HandIndex::H1], DeckIndex::D5);
-        assert_eq!(game_state.players[1].hand()[HandIndex::H1], DeckIndex::D5);
+        assert_eq!(game_state.players[PlayerNum::P1].special, 1);
+        assert_eq!(game_state.players[PlayerNum::P2].special, 1);
+        assert_eq!(
+            game_state.players[PlayerNum::P1].hand()[HandIndex::H1],
+            DeckIndex::D5
+        );
+        assert_eq!(
+            game_state.players[PlayerNum::P2].hand()[HandIndex::H1],
+            DeckIndex::D5
+        );
 
         // One player passes
         let mut game_state = game_state1();
@@ -1097,7 +1092,7 @@ mod tests {
                 },
             },
             &game_state.board,
-            &game_state.players[0],
+            &game_state.players[PlayerNum::P1],
             PlayerNum::P1,
         )
         .unwrap();
@@ -1108,7 +1103,7 @@ mod tests {
                 action: Action::Pass,
             },
             &game_state.board,
-            &game_state.players[1],
+            &game_state.players[PlayerNum::P2],
             PlayerNum::P2,
         )
         .unwrap();
@@ -1124,10 +1119,16 @@ mod tests {
         .unwrap();
         assert_eq!(game_state.turns_left(), 11);
         assert_eq!(game_state.board, expected_board);
-        assert_eq!(game_state.players[0].special, 0);
-        assert_eq!(game_state.players[1].special, 1);
-        assert_eq!(game_state.players[0].hand()[HandIndex::H1], DeckIndex::D5);
-        assert_eq!(game_state.players[1].hand()[HandIndex::H1], DeckIndex::D5);
+        assert_eq!(game_state.players[PlayerNum::P1].special, 0);
+        assert_eq!(game_state.players[PlayerNum::P2].special, 1);
+        assert_eq!(
+            game_state.players[PlayerNum::P1].hand()[HandIndex::H1],
+            DeckIndex::D5
+        );
+        assert_eq!(
+            game_state.players[PlayerNum::P2].hand()[HandIndex::H1],
+            DeckIndex::D5
+        );
 
         // Both players place ink
         let board = Board::new(vec![
@@ -1165,7 +1166,7 @@ mod tests {
                 },
             },
             &game_state.board,
-            &game_state.players[0],
+            &game_state.players[PlayerNum::P1],
             PlayerNum::P1,
         )
         .unwrap();
@@ -1181,7 +1182,7 @@ mod tests {
                 },
             },
             &game_state.board,
-            &game_state.players[1],
+            &game_state.players[PlayerNum::P2],
             PlayerNum::P2,
         )
         .unwrap();
@@ -1197,13 +1198,28 @@ mod tests {
         .unwrap();
         assert_eq!(game_state.turns_left(), 0);
         assert_eq!(game_state.board, expected_board);
-        assert_eq!(game_state.players[0].special, 1);
-        assert_eq!(game_state.players[1].special, 1);
-        assert_eq!(game_state.players[0].hand()[HandIndex::H1], DeckIndex::D5);
-        assert_eq!(game_state.players[1].hand()[HandIndex::H1], DeckIndex::D1);
-        assert_eq!(game_state.players[1].hand()[HandIndex::H2], DeckIndex::D5);
-        assert_eq!(game_state.players[1].hand()[HandIndex::H3], DeckIndex::D3);
-        assert_eq!(game_state.players[1].hand()[HandIndex::H4], DeckIndex::D4);
+        assert_eq!(game_state.players[PlayerNum::P1].special, 1);
+        assert_eq!(game_state.players[PlayerNum::P2].special, 1);
+        assert_eq!(
+            game_state.players[PlayerNum::P1].hand()[HandIndex::H1],
+            DeckIndex::D5
+        );
+        assert_eq!(
+            game_state.players[PlayerNum::P2].hand()[HandIndex::H1],
+            DeckIndex::D1
+        );
+        assert_eq!(
+            game_state.players[PlayerNum::P2].hand()[HandIndex::H2],
+            DeckIndex::D5
+        );
+        assert_eq!(
+            game_state.players[PlayerNum::P2].hand()[HandIndex::H3],
+            DeckIndex::D3
+        );
+        assert_eq!(
+            game_state.players[PlayerNum::P2].hand()[HandIndex::H4],
+            DeckIndex::D4
+        );
 
         // Both players place specials
         let board = Board::new(vec![
@@ -1241,7 +1257,7 @@ mod tests {
                 },
             },
             &game_state.board,
-            &game_state.players[0],
+            &game_state.players[PlayerNum::P1],
             PlayerNum::P1,
         )
         .unwrap();
@@ -1257,7 +1273,7 @@ mod tests {
                 },
             },
             &game_state.board,
-            &game_state.players[1],
+            &game_state.players[PlayerNum::P2],
             PlayerNum::P2,
         )
         .unwrap();
@@ -1273,9 +1289,15 @@ mod tests {
         .unwrap();
         assert_eq!(game_state.turns_left(), 4);
         assert_eq!(game_state.board, expected_board);
-        assert_eq!(game_state.players[0].special, 5);
-        assert_eq!(game_state.players[1].special, 6);
-        assert_eq!(game_state.players[0].hand()[HandIndex::H1], DeckIndex::D5);
-        assert_eq!(game_state.players[1].hand()[HandIndex::H2], DeckIndex::D5);
+        assert_eq!(game_state.players[PlayerNum::P1].special, 5);
+        assert_eq!(game_state.players[PlayerNum::P2].special, 6);
+        assert_eq!(
+            game_state.players[PlayerNum::P1].hand()[HandIndex::H1],
+            DeckIndex::D5
+        );
+        assert_eq!(
+            game_state.players[PlayerNum::P2].hand()[HandIndex::H2],
+            DeckIndex::D5
+        );
     }
 }

@@ -2,6 +2,7 @@ use crate::tableturf::card::Card;
 use crate::tableturf::deck::{Deck, DrawRng};
 use crate::tableturf::hand::{Hand, HandIndex};
 use crate::tableturf::input::Placement;
+use std::ops::{Index, IndexMut};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PlayerNum {
@@ -9,12 +10,30 @@ pub enum PlayerNum {
     P2,
 }
 
-impl PlayerNum {
-    pub fn idx(&self) -> usize {
-        match self {
-            PlayerNum::P1 => 0,
-            PlayerNum::P2 => 1,
+pub struct Players([Player; 2]);
+
+impl Index<PlayerNum> for Players {
+    type Output = Player;
+    fn index(&self, index: PlayerNum) -> &Self::Output {
+        match index {
+            PlayerNum::P1 => &self.0[0],
+            PlayerNum::P2 => &self.0[1],
         }
+    }
+}
+
+impl IndexMut<PlayerNum> for Players {
+    fn index_mut(&mut self, index: PlayerNum) -> &mut Self::Output {
+        match index {
+            PlayerNum::P1 => &mut self.0[0],
+            PlayerNum::P2 => &mut self.0[1],
+        }
+    }
+}
+
+impl Players {
+    pub fn new(players: [Player; 2]) -> Self {
+        Players(players)
     }
 }
 
