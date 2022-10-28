@@ -103,10 +103,10 @@ impl GameState {
     ) {
         // Spend special, if activated
         let player1 = &mut self.players[0];
-        let priority1 = player1.deck().get(player1.hand()[hand_idx1]).priority();
+        let priority1 = player1.deck()[player1.hand()[hand_idx1]].priority();
         player1.spend_special(&placement1, hand_idx1);
         let player2 = &mut self.players[1];
-        let priority2 = player2.deck().get(player2.hand()[hand_idx2]).priority();
+        let priority2 = player2.deck()[player2.hand()[hand_idx2]].priority();
         player2.spend_special(&placement2, hand_idx2);
 
         let overlap: Vec<(BoardPosition, InkSpace, InkSpace)> = placement1
@@ -528,24 +528,14 @@ mod tests {
         .unwrap();
 
         let player1 = Player::new(
-            Hand::new([
-                DeckIndex::new(0).unwrap(),
-                DeckIndex::new(1).unwrap(),
-                DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap(),
-            ]),
+            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
             default_deck1(),
             0,
         )
         .unwrap();
 
         let player2 = Player::new(
-            Hand::new([
-                DeckIndex::new(0).unwrap(),
-                DeckIndex::new(1).unwrap(),
-                DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap(),
-            ]),
+            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
             default_deck1(),
             0,
         )
@@ -571,12 +561,7 @@ mod tests {
         .unwrap();
 
         let player1 = Player::new(
-            Hand::new([
-                DeckIndex::new(0).unwrap(),
-                DeckIndex::new(1).unwrap(),
-                DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap(),
-            ]),
+            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
             default_deck1(),
             0,
         )
@@ -588,12 +573,7 @@ mod tests {
         card_states[2].is_available = false;
         card_states[3].is_available = false;
         let player2 = Player::new(
-            Hand::new([
-                DeckIndex::new(13).unwrap(),
-                DeckIndex::new(1).unwrap(),
-                DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap(),
-            ]),
+            Hand::new([DeckIndex::D14, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
             Deck::new(card_states),
             0,
         )
@@ -623,24 +603,14 @@ mod tests {
         .unwrap();
 
         let player1 = Player::new(
-            Hand::new([
-                DeckIndex::new(0).unwrap(),
-                DeckIndex::new(1).unwrap(),
-                DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap(),
-            ]),
+            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
             default_deck1(),
             0,
         )
         .unwrap();
 
         let player2 = Player::new(
-            Hand::new([
-                DeckIndex::new(0).unwrap(),
-                DeckIndex::new(1).unwrap(),
-                DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap(),
-            ]),
+            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
             default_deck1(),
             0,
         )
@@ -714,12 +684,7 @@ mod tests {
         .unwrap();
 
         let player1 = Player::new(
-            Hand::new([
-                DeckIndex::new(0).unwrap(),
-                DeckIndex::new(1).unwrap(),
-                DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap(),
-            ]),
+            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
             default_deck1(),
             0,
         )
@@ -727,10 +692,10 @@ mod tests {
 
         let player2 = Player::new(
             Hand::new([
-                DeckIndex::new(11).unwrap(),
-                DeckIndex::new(12).unwrap(),
-                DeckIndex::new(13).unwrap(),
-                DeckIndex::new(14).unwrap(),
+                DeckIndex::D12,
+                DeckIndex::D13,
+                DeckIndex::D14,
+                DeckIndex::D15,
             ]),
             default_deck2(),
             0,
@@ -948,12 +913,7 @@ mod tests {
     #[test]
     fn test_update_special_gauge() {
         let mut player = Player::new(
-            Hand::new([
-                DeckIndex::new(0).unwrap(),
-                DeckIndex::new(1).unwrap(),
-                DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap(),
-            ]),
+            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
             default_deck1(),
             0,
         )
@@ -1005,24 +965,14 @@ mod tests {
         .unwrap();
 
         let player1 = Player::new(
-            Hand::new([
-                DeckIndex::new(0).unwrap(),
-                DeckIndex::new(1).unwrap(),
-                DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap(),
-            ]),
+            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
             default_deck1(),
             0,
         )
         .unwrap();
 
         let player2 = Player::new(
-            Hand::new([
-                DeckIndex::new(0).unwrap(),
-                DeckIndex::new(1).unwrap(),
-                DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap(),
-            ]),
+            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
             default_deck1(),
             0,
         )
@@ -1041,24 +991,14 @@ mod tests {
         .unwrap();
 
         let player1 = Player::new(
-            Hand::new([
-                DeckIndex::new(0).unwrap(),
-                DeckIndex::new(1).unwrap(),
-                DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap(),
-            ]),
+            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
             default_deck1(),
             0,
         )
         .unwrap();
 
         let player2 = Player::new(
-            Hand::new([
-                DeckIndex::new(0).unwrap(),
-                DeckIndex::new(1).unwrap(),
-                DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap(),
-            ]),
+            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
             default_deck1(),
             0,
         )
@@ -1140,14 +1080,8 @@ mod tests {
         assert_eq!(game_state.board, expected_board);
         assert_eq!(game_state.players[0].special, 1);
         assert_eq!(game_state.players[1].special, 1);
-        assert_eq!(
-            game_state.players[0].hand()[HandIndex::H1],
-            DeckIndex::new(4).unwrap()
-        );
-        assert_eq!(
-            game_state.players[1].hand()[HandIndex::H1],
-            DeckIndex::new(4).unwrap()
-        );
+        assert_eq!(game_state.players[0].hand()[HandIndex::H1], DeckIndex::D5);
+        assert_eq!(game_state.players[1].hand()[HandIndex::H1], DeckIndex::D5);
 
         // One player passes
         let mut game_state = game_state1();
@@ -1192,14 +1126,8 @@ mod tests {
         assert_eq!(game_state.board, expected_board);
         assert_eq!(game_state.players[0].special, 0);
         assert_eq!(game_state.players[1].special, 1);
-        assert_eq!(
-            game_state.players[0].hand()[HandIndex::H1],
-            DeckIndex::new(4).unwrap()
-        );
-        assert_eq!(
-            game_state.players[1].hand()[HandIndex::H1],
-            DeckIndex::new(4).unwrap()
-        );
+        assert_eq!(game_state.players[0].hand()[HandIndex::H1], DeckIndex::D5);
+        assert_eq!(game_state.players[1].hand()[HandIndex::H1], DeckIndex::D5);
 
         // Both players place ink
         let board = Board::new(vec![
@@ -1211,24 +1139,14 @@ mod tests {
         .unwrap();
 
         let player1 = Player::new(
-            Hand::new([
-                DeckIndex::new(0).unwrap(),
-                DeckIndex::new(1).unwrap(),
-                DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap(),
-            ]),
+            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
             default_deck1(),
             0,
         )
         .unwrap();
 
         let player2 = Player::new(
-            Hand::new([
-                DeckIndex::new(0).unwrap(),
-                DeckIndex::new(1).unwrap(),
-                DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap(),
-            ]),
+            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
             default_deck1(),
             0,
         )
@@ -1281,26 +1199,11 @@ mod tests {
         assert_eq!(game_state.board, expected_board);
         assert_eq!(game_state.players[0].special, 1);
         assert_eq!(game_state.players[1].special, 1);
-        assert_eq!(
-            game_state.players[0].hand()[HandIndex::H1],
-            DeckIndex::new(4).unwrap()
-        );
-        assert_eq!(
-            game_state.players[1].hand()[HandIndex::H1],
-            DeckIndex::new(0).unwrap()
-        );
-        assert_eq!(
-            game_state.players[1].hand()[HandIndex::H2],
-            DeckIndex::new(4).unwrap()
-        );
-        assert_eq!(
-            game_state.players[1].hand()[HandIndex::H3],
-            DeckIndex::new(2).unwrap()
-        );
-        assert_eq!(
-            game_state.players[1].hand()[HandIndex::H4],
-            DeckIndex::new(3).unwrap()
-        );
+        assert_eq!(game_state.players[0].hand()[HandIndex::H1], DeckIndex::D5);
+        assert_eq!(game_state.players[1].hand()[HandIndex::H1], DeckIndex::D1);
+        assert_eq!(game_state.players[1].hand()[HandIndex::H2], DeckIndex::D5);
+        assert_eq!(game_state.players[1].hand()[HandIndex::H3], DeckIndex::D3);
+        assert_eq!(game_state.players[1].hand()[HandIndex::H4], DeckIndex::D4);
 
         // Both players place specials
         let board = Board::new(vec![
@@ -1312,24 +1215,14 @@ mod tests {
         .unwrap();
 
         let player1 = Player::new(
-            Hand::new([
-                DeckIndex::new(0).unwrap(),
-                DeckIndex::new(1).unwrap(),
-                DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap(),
-            ]),
+            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
             default_deck1(),
             7,
         )
         .unwrap();
 
         let player2 = Player::new(
-            Hand::new([
-                DeckIndex::new(0).unwrap(),
-                DeckIndex::new(1).unwrap(),
-                DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap(),
-            ]),
+            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
             default_deck1(),
             8,
         )
@@ -1382,13 +1275,7 @@ mod tests {
         assert_eq!(game_state.board, expected_board);
         assert_eq!(game_state.players[0].special, 5);
         assert_eq!(game_state.players[1].special, 6);
-        assert_eq!(
-            game_state.players[0].hand()[HandIndex::H1],
-            DeckIndex::new(4).unwrap()
-        );
-        assert_eq!(
-            game_state.players[1].hand()[HandIndex::H2],
-            DeckIndex::new(4).unwrap()
-        );
+        assert_eq!(game_state.players[0].hand()[HandIndex::H1], DeckIndex::D5);
+        assert_eq!(game_state.players[1].hand()[HandIndex::H2], DeckIndex::D5);
     }
 }

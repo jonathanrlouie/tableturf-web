@@ -1,5 +1,5 @@
-use std::ops::{Index, IndexMut};
 use crate::tableturf::deck::DeckIndex;
+use std::ops::{Index, IndexMut};
 
 pub const HAND_SIZE: usize = 4;
 
@@ -41,4 +41,3 @@ impl Hand {
         Hand(hand)
     }
 }
-

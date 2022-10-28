@@ -661,12 +661,7 @@ mod tests {
             vec![empty, empty, empty],
         ])
         .unwrap();
-        let hand = Hand::new([
-            DeckIndex::new(13).unwrap(),
-            DeckIndex::new(1).unwrap(),
-            DeckIndex::new(2).unwrap(),
-            DeckIndex::new(3).unwrap(),
-        ]);
+        let hand = Hand::new([DeckIndex::D14, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]);
         let special = 5;
         let player = Player::new(hand, default_deck(), special).unwrap();
         let placement = Placement::new(
@@ -715,12 +710,7 @@ mod tests {
         assert!(placement.is_none());
 
         // Test placing special on top of an inked space
-        let hand = Hand::new([
-            DeckIndex::new(13).unwrap(),
-            DeckIndex::new(1).unwrap(),
-            DeckIndex::new(2).unwrap(),
-            DeckIndex::new(3).unwrap(),
-        ]);
+        let hand = Hand::new([DeckIndex::D14, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]);
         let board = Board::new(vec![
             vec![empty, p1_ink, empty],
             vec![empty, p1_special, empty],
@@ -1052,12 +1042,7 @@ mod tests {
             vec![empty, empty, empty],
         ])
         .unwrap();
-        let hand = Hand::new([
-            DeckIndex::new(13).unwrap(),
-            DeckIndex::new(1).unwrap(),
-            DeckIndex::new(2).unwrap(),
-            DeckIndex::new(3).unwrap(),
-        ]);
+        let hand = Hand::new([DeckIndex::D14, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]);
         let special = 5;
         let player = Player::new(hand, default_deck(), special).unwrap();
         let input = ValidInput::new(

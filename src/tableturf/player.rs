@@ -32,10 +32,10 @@ impl Player {
         let card2 = hand[HandIndex::H2];
         let card3 = hand[HandIndex::H3];
         let card4 = hand[HandIndex::H4];
-        if deck.get(card1).is_available
-            || deck.get(card2).is_available
-            || deck.get(card3).is_available
-            || deck.get(card4).is_available
+        if deck[card1].is_available
+            || deck[card2].is_available
+            || deck[card3].is_available
+            || deck[card4].is_available
         {
             return None;
         }
@@ -55,7 +55,7 @@ impl Player {
     }
 
     pub fn get_card(&self, hand_idx: HandIndex) -> Card {
-        self.deck.get(self.hand[hand_idx]).card()
+        self.deck[self.hand[hand_idx]].card()
     }
 
     pub fn replace_card<R: DrawRng>(&mut self, idx: HandIndex, rng: &mut R) {
@@ -68,7 +68,7 @@ impl Player {
 
     pub fn spend_special(&mut self, placement: &Placement, hand_idx: HandIndex) {
         if placement.is_special_activated() {
-            let selected_card = self.deck.get(self.hand[hand_idx]);
+            let selected_card = self.deck[self.hand[hand_idx]];
             self.special -= selected_card.special();
         }
     }
@@ -122,19 +122,14 @@ mod tests {
             available_card,
         ]);
         let mut player = Player::new(
-            Hand::new([
-                DeckIndex::new(0).unwrap(),
-                DeckIndex::new(1).unwrap(),
-                DeckIndex::new(2).unwrap(),
-                DeckIndex::new(3).unwrap(),
-            ]),
+            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
             deck,
             0,
         )
         .unwrap();
         player.replace_card(HandIndex::H1, &mut MockRng);
         let deck_idx = player.hand[HandIndex::H1];
-        assert_eq!(deck_idx.get(), 4);
-        assert_eq!(player.deck().get(deck_idx).is_available, false);
+        assert_eq!(deck_idx, DeckIndex::D5);
+        assert_eq!(player.deck()[deck_idx].is_available, false);
     }
 }
