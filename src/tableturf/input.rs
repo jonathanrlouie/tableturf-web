@@ -128,7 +128,13 @@ impl ValidInput {
         player_num: PlayerNum,
     ) -> Option<Self> {
         // Ensure given index is within the range of 0..4
-        let hand_idx = HandIndex::new(input.hand_idx)?;
+        let hand_idx = match input.hand_idx {
+            0 => HandIndex::H1,
+            1 => HandIndex::H2,
+            2 => HandIndex::H3,
+            3 => HandIndex::H4,
+            _ => return None,
+        };
 
         match input.action {
             Action::Pass => Some(Self {
@@ -668,7 +674,7 @@ mod tests {
             -3,
             false,
             Rotation::Two,
-            HandIndex::new(0).unwrap(),
+            HandIndex::H1,
             &board,
             &player,
             PlayerNum::P1,
@@ -701,7 +707,7 @@ mod tests {
             -3,
             false,
             Rotation::Two,
-            HandIndex::new(0).unwrap(),
+            HandIndex::H1,
             &board,
             &player,
             PlayerNum::P1,
@@ -709,6 +715,12 @@ mod tests {
         assert!(placement.is_none());
 
         // Test placing special on top of an inked space
+        let hand = Hand::new([
+            DeckIndex::new(13).unwrap(),
+            DeckIndex::new(1).unwrap(),
+            DeckIndex::new(2).unwrap(),
+            DeckIndex::new(3).unwrap(),
+        ]);
         let board = Board::new(vec![
             vec![empty, p1_ink, empty],
             vec![empty, p1_special, empty],
@@ -720,7 +732,7 @@ mod tests {
             -3,
             true,
             Rotation::Two,
-            HandIndex::new(0).unwrap(),
+            HandIndex::H1,
             &board,
             &player,
             PlayerNum::P1,
@@ -740,7 +752,7 @@ mod tests {
             -3,
             true,
             Rotation::Two,
-            HandIndex::new(0).unwrap(),
+            HandIndex::H1,
             &board,
             &player_no_special,
             PlayerNum::P1,
@@ -759,7 +771,7 @@ mod tests {
             -3,
             true,
             Rotation::Two,
-            HandIndex::new(0).unwrap(),
+            HandIndex::H1,
             &board,
             &player,
             PlayerNum::P1,
@@ -778,7 +790,7 @@ mod tests {
             -3,
             false,
             Rotation::Two,
-            HandIndex::new(0).unwrap(),
+            HandIndex::H1,
             &board,
             &player,
             PlayerNum::P1,
@@ -797,7 +809,7 @@ mod tests {
             -3,
             true,
             Rotation::Two,
-            HandIndex::new(0).unwrap(),
+            HandIndex::H1,
             &board,
             &player,
             PlayerNum::P1,
@@ -816,7 +828,7 @@ mod tests {
             -3,
             false,
             Rotation::Two,
-            HandIndex::new(0).unwrap(),
+            HandIndex::H1,
             &board,
             &player,
             PlayerNum::P1,

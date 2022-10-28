@@ -103,10 +103,10 @@ impl GameState {
     ) {
         // Spend special, if activated
         let player1 = &mut self.players[0];
-        let priority1 = player1.deck().get(player1.hand().get(hand_idx1)).priority();
+        let priority1 = player1.deck().get(player1.hand()[hand_idx1]).priority();
         player1.spend_special(&placement1, hand_idx1);
         let player2 = &mut self.players[1];
-        let priority2 = player2.deck().get(player2.hand().get(hand_idx2)).priority();
+        let priority2 = player2.deck().get(player2.hand()[hand_idx2]).priority();
         player2.spend_special(&placement2, hand_idx2);
 
         let overlap: Vec<(BoardPosition, InkSpace, InkSpace)> = placement1
@@ -739,7 +739,7 @@ mod tests {
 
         let mut game_state = GameState::new(board, [player1, player2], 12);
 
-        let hand_idx = HandIndex::new(0).unwrap();
+        let hand_idx = HandIndex::H1;
         game_state.place(
             hand_idx,
             Placement::new(
@@ -787,7 +787,7 @@ mod tests {
 
         let mut game_state1 = game_state1();
 
-        let hand_idx = HandIndex::new(0).unwrap();
+        let hand_idx = HandIndex::H1;
         game_state1.place_both(
             hand_idx,
             hand_idx,
@@ -827,7 +827,7 @@ mod tests {
         let mut game_state_offset = game_state_offset();
         let board_offset = &game_state_offset.board;
 
-        let hand_idx = HandIndex::new(0).unwrap();
+        let hand_idx = HandIndex::H1;
         game_state_offset.place_both(
             hand_idx,
             hand_idx,
@@ -865,7 +865,7 @@ mod tests {
         assert_eq!(game_state_offset.board, expected_board_offset);
 
         let mut game_state2 = game_state2();
-        let hand_idx = HandIndex::new(0).unwrap();
+        let hand_idx = HandIndex::H1;
         game_state2.place_both(
             hand_idx,
             hand_idx,
@@ -1141,11 +1141,11 @@ mod tests {
         assert_eq!(game_state.players[0].special, 1);
         assert_eq!(game_state.players[1].special, 1);
         assert_eq!(
-            game_state.players[0].hand().get(HandIndex::new(0).unwrap()),
+            game_state.players[0].hand()[HandIndex::H1],
             DeckIndex::new(4).unwrap()
         );
         assert_eq!(
-            game_state.players[1].hand().get(HandIndex::new(0).unwrap()),
+            game_state.players[1].hand()[HandIndex::H1],
             DeckIndex::new(4).unwrap()
         );
 
@@ -1193,11 +1193,11 @@ mod tests {
         assert_eq!(game_state.players[0].special, 0);
         assert_eq!(game_state.players[1].special, 1);
         assert_eq!(
-            game_state.players[0].hand().get(HandIndex::new(0).unwrap()),
+            game_state.players[0].hand()[HandIndex::H1],
             DeckIndex::new(4).unwrap()
         );
         assert_eq!(
-            game_state.players[1].hand().get(HandIndex::new(0).unwrap()),
+            game_state.players[1].hand()[HandIndex::H1],
             DeckIndex::new(4).unwrap()
         );
 
@@ -1282,23 +1282,23 @@ mod tests {
         assert_eq!(game_state.players[0].special, 1);
         assert_eq!(game_state.players[1].special, 1);
         assert_eq!(
-            game_state.players[0].hand().get(HandIndex::new(0).unwrap()),
+            game_state.players[0].hand()[HandIndex::H1],
             DeckIndex::new(4).unwrap()
         );
         assert_eq!(
-            game_state.players[1].hand().get(HandIndex::new(0).unwrap()),
+            game_state.players[1].hand()[HandIndex::H1],
             DeckIndex::new(0).unwrap()
         );
         assert_eq!(
-            game_state.players[1].hand().get(HandIndex::new(1).unwrap()),
+            game_state.players[1].hand()[HandIndex::H2],
             DeckIndex::new(4).unwrap()
         );
         assert_eq!(
-            game_state.players[1].hand().get(HandIndex::new(2).unwrap()),
+            game_state.players[1].hand()[HandIndex::H3],
             DeckIndex::new(2).unwrap()
         );
         assert_eq!(
-            game_state.players[1].hand().get(HandIndex::new(3).unwrap()),
+            game_state.players[1].hand()[HandIndex::H4],
             DeckIndex::new(3).unwrap()
         );
 
@@ -1383,11 +1383,11 @@ mod tests {
         assert_eq!(game_state.players[0].special, 5);
         assert_eq!(game_state.players[1].special, 6);
         assert_eq!(
-            game_state.players[0].hand().get(HandIndex::new(0).unwrap()),
+            game_state.players[0].hand()[HandIndex::H1],
             DeckIndex::new(4).unwrap()
         );
         assert_eq!(
-            game_state.players[1].hand().get(HandIndex::new(1).unwrap()),
+            game_state.players[1].hand()[HandIndex::H2],
             DeckIndex::new(4).unwrap()
         );
     }
