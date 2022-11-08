@@ -1,6 +1,6 @@
 use crate::tableturf::board::{Board, BoardPosition, BoardSpace};
 use crate::tableturf::card::{Card, CardSpace, InkSpace};
-use crate::tableturf::deck::{HandIndex, Deck, DeckIndex, DrawRng};
+use crate::tableturf::deck::{Deck, DeckIndex, DrawRng, HandIndex};
 use crate::tableturf::input::{Input, Placement, ValidInput};
 use crate::tableturf::player::{Player, PlayerNum, Players};
 use rand::prelude::IteratorRandom;
@@ -506,7 +506,7 @@ mod tests {
     use super::*;
     use crate::tableturf::board::{Board, BoardPosition};
     use crate::tableturf::card::{Card, CardSpace, CardState};
-    use crate::tableturf::deck::{Hand, HandIndex, Deck, DeckIndex};
+    use crate::tableturf::deck::{Deck, DeckIndex, Hand, HandIndex};
     use crate::tableturf::input::{Action, Placement, RawInput, Rotation};
 
     struct MockRng1;

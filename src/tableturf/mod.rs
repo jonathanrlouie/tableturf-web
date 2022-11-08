@@ -6,6 +6,6 @@ mod input;
 mod logic;
 mod player;
 
-pub use deck::{Hand, Deck};
+pub use deck::{Deck, Hand};
 pub type GameState = game_state::GameState<game_state::DeckRng>;
 pub use player::PlayerNum;

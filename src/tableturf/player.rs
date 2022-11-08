@@ -1,8 +1,8 @@
 use crate::tableturf::card::Card;
-use crate::tableturf::deck::{Hand, HandIndex, Deck, DrawRng};
+use crate::tableturf::deck::{Deck, DrawRng, Hand, HandIndex};
 use crate::tableturf::input::Placement;
-use std::ops::{Index, IndexMut};
 use serde::Serialize;
+use std::ops::{Index, IndexMut};
 
 #[derive(Serialize, Copy, Clone, Debug, PartialEq)]
 pub enum PlayerNum {

@@ -1,6 +1,6 @@
 use crate::tableturf::board::{Board, BoardPosition, BoardSpace};
 use crate::tableturf::card::{Card, Grid, InkSpace, ROW_LEN};
-use crate::tableturf::deck::{HandIndex, DrawRng};
+use crate::tableturf::deck::{DrawRng, HandIndex};
 use crate::tableturf::player::{Player, PlayerNum};
 
 // Represents the number of counter-clockwise rotations applied to a Card
@@ -273,7 +273,7 @@ mod tests {
     use super::*;
     use crate::tableturf::board::{Board, BoardPosition};
     use crate::tableturf::card::{Card, CardSpace, CardState, InkSpace};
-    use crate::tableturf::deck::{Hand, HandIndex, Deck, DeckIndex};
+    use crate::tableturf::deck::{Deck, DeckIndex, Hand, HandIndex};
 
     struct MockRng;
     struct MockRng2;
