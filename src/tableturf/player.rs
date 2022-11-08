@@ -37,6 +37,7 @@ impl Players {
     }
 }
 
+#[derive(Serialize, Debug)]
 pub struct Player {
     hand: Hand,
     deck: Deck,

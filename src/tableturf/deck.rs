@@ -1,8 +1,9 @@
+use crate::tableturf::card::{Card, CardState};
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::ops::{Index, IndexMut};
+use serde::Serialize;
 
-use crate::tableturf::card::{Card, CardState};
 
 pub const HAND_SIZE: usize = 4;
 
@@ -14,7 +15,7 @@ pub enum HandIndex {
     H4,
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
 pub struct Hand([DeckIndex; HAND_SIZE]);
 
 impl Index<HandIndex> for Hand {
@@ -53,7 +54,7 @@ pub trait DrawRng {
     fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Vec<DeckIndex>;
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Serialize, Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum DeckIndex {
     D1,
     D2,
@@ -115,7 +116,7 @@ pub fn idx_to_usize(index: DeckIndex) -> usize {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Serialize, Copy, Clone, Debug)]
 pub struct Deck([CardState; DECK_SIZE]);
 
 impl Index<DeckIndex> for Deck {
