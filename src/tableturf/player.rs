@@ -3,8 +3,9 @@ use crate::tableturf::deck::{Deck, DrawRng};
 use crate::tableturf::hand::{Hand, HandIndex};
 use crate::tableturf::input::Placement;
 use std::ops::{Index, IndexMut};
+use serde::Serialize;
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Serialize, Copy, Clone, Debug, PartialEq)]
 pub enum PlayerNum {
     P1,
     P2,
@@ -104,6 +105,11 @@ mod tests {
         fn draw<T, I: Iterator<Item = T> + Sized>(&mut self, mut iter: I) -> Option<T> {
             iter.next()
         }
+
+        fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Vec<DeckIndex> {
+            let v: Vec<DeckIndex> = iter.collect();
+            vec![v[0], v[1], v[2], v[3]]
+        }
     }
 
     #[test]
@@ -120,31 +126,15 @@ mod tests {
             [empty, empty, empty, empty, empty, empty, empty, empty],
         ];
         let card = Card::new(0, spaces, 0);
-        let available_card = CardState::new(card, true);
-        let unavailable_card = CardState::new(card, false);
-        let deck = Deck::new([
-            unavailable_card,
-            unavailable_card,
-            unavailable_card,
-            unavailable_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-        ]);
-        let mut player = Player::new(
-            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
-            deck,
-            0,
+        let (deck, hand) = Deck::draw_hand(
+            [
+                card, card, card, card, card, card, card, card, card, card, card, card, card, card,
+                card,
+            ],
+            &mut MockRng,
         )
         .unwrap();
+        let mut player = Player::new(hand, deck, 0).unwrap();
         player.replace_card(HandIndex::H1, &mut MockRng);
         let deck_idx = player.hand[HandIndex::H1];
         assert_eq!(deck_idx, DeckIndex::D5);

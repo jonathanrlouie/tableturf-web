@@ -1,6 +1,8 @@
+use serde::Serialize;
+
 pub const ROW_LEN: usize = 8;
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Serialize, Copy, Clone, Debug, PartialEq)]
 pub enum InkSpace {
     Normal,
     Special,
@@ -10,7 +12,7 @@ pub type CardSpace = Option<InkSpace>;
 
 pub type Grid = [[CardSpace; ROW_LEN]; ROW_LEN];
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Serialize, Copy, Clone, Debug, PartialEq)]
 pub struct Card {
     priority: u32,
     spaces: Grid,
@@ -39,7 +41,7 @@ impl Card {
     }
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Serialize, Copy, Clone, Debug, PartialEq)]
 pub struct CardState {
     card: Card,
     pub is_available: bool,

@@ -1,6 +1,7 @@
 use crate::tableturf::player::PlayerNum;
+use serde::Serialize;
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Serialize, Copy, Clone, Debug, PartialEq)]
 pub enum BoardSpace {
     Empty,
     Ink {
@@ -110,11 +111,11 @@ impl BoardPosition {
     }
 }
 
-pub const MAX_BOARD_WIDTH: usize = 25;
-pub const MAX_BOARD_HEIGHT: usize = 25;
+pub const MAX_BOARD_WIDTH: usize = 26;
+pub const MAX_BOARD_HEIGHT: usize = 26;
 
 // This cannot be an array, because custom boards might be loaded at runtime
-#[derive(Debug, PartialEq)]
+#[derive(Serialize, Debug, PartialEq)]
 pub struct Board(Vec<Vec<BoardSpace>>);
 
 impl Board {
@@ -237,11 +238,12 @@ mod tests {
 
         let too_wide_board = Board::new(vec![vec![
             wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-            wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
         ]]);
         assert!(too_wide_board.is_none());
 
         let too_tall_board = Board::new(vec![
+            vec![wall],
             vec![wall],
             vec![wall],
             vec![wall],
@@ -280,103 +282,107 @@ mod tests {
         let max_valid_board = Board::new(vec![
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
             vec![
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
-                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+            ],
+            vec![
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
+                wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
         ]);
         assert!(max_valid_board.is_some());

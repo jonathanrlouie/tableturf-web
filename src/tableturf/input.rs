@@ -1,5 +1,6 @@
 use crate::tableturf::board::{Board, BoardPosition, BoardSpace};
 use crate::tableturf::card::{Card, Grid, InkSpace, ROW_LEN};
+use crate::tableturf::deck::DrawRng;
 use crate::tableturf::hand::HandIndex;
 use crate::tableturf::player::{Player, PlayerNum};
 
@@ -276,6 +277,31 @@ mod tests {
     use crate::tableturf::deck::{Deck, DeckIndex};
     use crate::tableturf::hand::{Hand, HandIndex};
 
+    struct MockRng;
+    struct MockRng2;
+
+    impl DrawRng for MockRng {
+        fn draw<T, I: Iterator<Item = T> + Sized>(&mut self, mut iter: I) -> Option<T> {
+            iter.next()
+        }
+
+        fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Vec<DeckIndex> {
+            let v: Vec<DeckIndex> = iter.collect();
+            vec![v[13], v[1], v[2], v[3]]
+        }
+    }
+
+    impl DrawRng for MockRng2 {
+        fn draw<T, I: Iterator<Item = T> + Sized>(&mut self, mut iter: I) -> Option<T> {
+            iter.next()
+        }
+
+        fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Vec<DeckIndex> {
+            let v: Vec<DeckIndex> = iter.collect();
+            vec![v[13], v[1], v[2], v[3]]
+        }
+    }
+
     #[test]
     fn test_rotate_input() {
         let e: CardSpace = None;
@@ -356,291 +382,245 @@ mod tests {
         );
     }
 
-    fn card_states() -> [CardState; 15] {
+    fn custom_deck() -> [Card; 15] {
         let e: CardSpace = None;
         let i: CardSpace = Some(InkSpace::Normal);
         let s: CardSpace = Some(InkSpace::Special);
         [
             // Splattershot
-            CardState::new(
-                Card::new(
-                    8,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, i, i, s, e, e, e],
-                        [e, e, i, i, i, i, e, e],
-                        [e, e, i, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    3,
-                ),
-                true,
+            Card::new(
+                8,
+                [
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, i, i, s, e, e, e],
+                    [e, e, i, i, i, i, e, e],
+                    [e, e, i, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                ],
+                3,
             ),
             // Custom card 1
-            CardState::new(
-                Card::new(
-                    6,
-                    [
-                        [i, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    3,
-                ),
-                false,
+            Card::new(
+                6,
+                [
+                    [i, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                ],
+                3,
             ),
             // Custom card 2
-            CardState::new(
-                Card::new(
-                    9,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, i],
-                    ],
-                    4,
-                ),
-                false,
+            Card::new(
+                9,
+                [
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, i],
+                ],
+                4,
             ),
             // Blaster
-            CardState::new(
-                Card::new(
-                    8,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, i, e, e, i, s, e, e],
-                        [e, e, i, i, i, i, e, e],
-                        [e, e, i, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    3,
-                ),
-                false,
+            Card::new(
+                8,
+                [
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, i, e, e, i, s, e, e],
+                    [e, e, i, i, i, i, e, e],
+                    [e, e, i, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                ],
+                3,
             ),
             // Splat Dualies
-            CardState::new(
-                Card::new(
-                    8,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, i, i, i, i, e, e],
-                        [e, e, i, s, e, e, e, e],
-                        [e, i, i, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    3,
-                ),
-                true,
+            Card::new(
+                8,
+                [
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, i, i, i, i, e, e],
+                    [e, e, i, s, e, e, e, e],
+                    [e, i, i, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                ],
+                3,
             ),
             // Flooder
-            CardState::new(
-                Card::new(
-                    14,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, i, s, i, i, i, e, e],
-                        [e, i, e, i, e, i, e, e],
-                        [e, i, e, i, e, i, e, e],
-                        [e, i, e, i, e, i, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    5,
-                ),
-                true,
+            Card::new(
+                14,
+                [
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, i, s, i, i, i, e, e],
+                    [e, i, e, i, e, i, e, e],
+                    [e, i, e, i, e, i, e, e],
+                    [e, i, e, i, e, i, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                ],
+                5,
             ),
             // Splat Roller
-            CardState::new(
-                Card::new(
-                    9,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, i, i, s, i, i, e, e],
-                        [e, e, e, i, i, i, e, e],
-                        [e, e, e, i, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    4,
-                ),
-                true,
+            Card::new(
+                9,
+                [
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, i, i, s, i, i, e, e],
+                    [e, e, e, i, i, i, e, e],
+                    [e, e, e, i, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                ],
+                4,
             ),
             // Tri-Stringer
-            CardState::new(
-                Card::new(
-                    11,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, i, s, i, i, i, e, e],
-                        [e, i, e, i, e, e, e, e],
-                        [e, i, i, e, e, e, e, e],
-                        [e, i, e, e, e, e, e, e],
-                        [e, i, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    4,
-                ),
-                true,
+            Card::new(
+                11,
+                [
+                    [e, e, e, e, e, e, e, e],
+                    [e, i, s, i, i, i, e, e],
+                    [e, i, e, i, e, e, e, e],
+                    [e, i, i, e, e, e, e, e],
+                    [e, i, e, e, e, e, e, e],
+                    [e, i, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                ],
+                4,
             ),
             // Chum
-            CardState::new(
-                Card::new(
-                    5,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, i, e, e, e, e],
-                        [e, e, s, i, e, e, e, e],
-                        [e, e, e, i, i, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    2,
-                ),
-                true,
+            Card::new(
+                5,
+                [
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, i, e, e, e, e],
+                    [e, e, s, i, e, e, e, e],
+                    [e, e, e, i, i, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                ],
+                2,
             ),
             // Splat Charger
-            CardState::new(
-                Card::new(
-                    8,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [i, i, i, i, i, i, i, e],
-                        [e, e, s, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    3,
-                ),
-                true,
+            Card::new(
+                8,
+                [
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [i, i, i, i, i, i, i, e],
+                    [e, e, s, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                ],
+                3,
             ),
             // Splatana Wiper
-            CardState::new(
-                Card::new(
-                    5,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, s, e, e, e, e],
-                        [e, e, e, i, e, e, e, e],
-                        [e, e, e, i, e, e, e, e],
-                        [e, e, e, i, e, e, e, e],
-                        [e, e, e, i, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    2,
-                ),
-                true,
+            Card::new(
+                5,
+                [
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, s, e, e, e, e],
+                    [e, e, e, i, e, e, e, e],
+                    [e, e, e, i, e, e, e, e],
+                    [e, e, e, i, e, e, e, e],
+                    [e, e, e, i, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                ],
+                2,
             ),
             // SquidForce
-            CardState::new(
-                Card::new(
-                    10,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, i, e, e, e, e],
-                        [e, e, e, i, e, e, e, e],
-                        [e, i, i, i, i, i, e, e],
-                        [e, e, e, i, s, e, e, e],
-                        [e, e, e, i, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    4,
-                ),
-                true,
+            Card::new(
+                10,
+                [
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, i, e, e, e, e],
+                    [e, e, e, i, e, e, e, e],
+                    [e, i, i, i, i, i, e, e],
+                    [e, e, e, i, s, e, e, e],
+                    [e, e, e, i, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                ],
+                4,
             ),
             // Heavy Splatling
-            CardState::new(
-                Card::new(
-                    12,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, i, i, e, e, e, e, e],
-                        [e, i, i, e, e, e, e, e],
-                        [e, i, i, e, e, e, e, e],
-                        [e, e, i, i, e, e, e, e],
-                        [e, e, e, i, s, e, e, e],
-                        [e, e, e, e, i, i, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    5,
-                ),
-                true,
+            Card::new(
+                12,
+                [
+                    [e, e, e, e, e, e, e, e],
+                    [e, i, i, e, e, e, e, e],
+                    [e, i, i, e, e, e, e, e],
+                    [e, i, i, e, e, e, e, e],
+                    [e, e, i, i, e, e, e, e],
+                    [e, e, e, i, s, e, e, e],
+                    [e, e, e, e, i, i, e, e],
+                    [e, e, e, e, e, e, e, e],
+                ],
+                5,
             ),
             // Splat Bomb
-            CardState::new(
-                Card::new(
-                    3,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, s, e, e, e],
-                        [e, e, e, i, i, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    1,
-                ),
-                false,
+            Card::new(
+                3,
+                [
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, s, e, e, e],
+                    [e, e, e, i, i, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                ],
+                1,
             ),
             // Marigold
-            CardState::new(
-                Card::new(
-                    15,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, i, e, e, e, e],
-                        [e, e, i, i, i, e, e, e],
-                        [e, i, e, i, e, i, e, e],
-                        [e, i, i, s, i, i, e, e],
-                        [e, e, i, i, i, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    5,
-                ),
-                true,
+            Card::new(
+                15,
+                [
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, i, e, e, e, e],
+                    [e, e, i, i, i, e, e, e],
+                    [e, i, e, i, e, i, e, e],
+                    [e, i, i, s, i, i, e, e],
+                    [e, e, i, i, i, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                    [e, e, e, e, e, e, e, e],
+                ],
+                5,
             ),
         ]
     }
 
-    fn default_deck() -> Deck {
-        let mut card_states = card_states();
-        card_states[0].is_available = false;
-        card_states[1].is_available = false;
-        card_states[2].is_available = false;
-        card_states[3].is_available = false;
-        Deck::new(card_states)
+    fn draw_hand() -> (Deck, Hand) {
+        Deck::draw_hand(custom_deck(), &mut MockRng).unwrap()
+    }
+
+    fn draw_hand2() -> (Deck, Hand) {
+        Deck::draw_hand(custom_deck(), &mut MockRng2).unwrap()
     }
 
     #[test]
@@ -660,9 +640,9 @@ mod tests {
             vec![empty, empty, empty],
         ])
         .unwrap();
-        let hand = Hand::new([DeckIndex::D14, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]);
+        let (deck, hand) = draw_hand2();
         let special = 5;
-        let player = Player::new(hand, default_deck(), special).unwrap();
+        let player = Player::new(hand, deck, special).unwrap();
         let placement = Placement::new(
             (-3, -3),
             false,
@@ -725,7 +705,8 @@ mod tests {
         );
         assert!(placement.is_some());
 
-        let player_no_special = Player::new(hand, default_deck(), 0).unwrap();
+        let (draw, hand) = draw_hand();
+        let player_no_special = Player::new(hand, deck, 0).unwrap();
         // Test placing special with insufficient special meter
         let board = Board::new(vec![
             vec![empty, p1_ink, empty],
@@ -1033,9 +1014,9 @@ mod tests {
             vec![empty, empty, empty],
         ])
         .unwrap();
-        let hand = Hand::new([DeckIndex::D14, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]);
+        let (deck, hand) = draw_hand2();
         let special = 5;
-        let player = Player::new(hand, default_deck(), special).unwrap();
+        let player = Player::new(hand, deck, special).unwrap();
         let input = ValidInput::new(
             RawInput {
                 hand_idx: 0,

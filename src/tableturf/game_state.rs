@@ -1,6 +1,6 @@
 use crate::tableturf::board::{Board, BoardPosition, BoardSpace};
-use crate::tableturf::card::InkSpace;
-use crate::tableturf::deck::DrawRng;
+use crate::tableturf::card::{Card, CardSpace, InkSpace};
+use crate::tableturf::deck::{Deck, DeckIndex, DrawRng};
 use crate::tableturf::hand::HandIndex;
 use crate::tableturf::input::{Input, Placement, ValidInput};
 use crate::tableturf::player::{Player, PlayerNum, Players};
@@ -8,13 +8,17 @@ use rand::prelude::IteratorRandom;
 use rand::rngs::ThreadRng;
 use std::cmp::Ordering;
 
-struct DeckRng {
+pub struct DeckRng {
     rng: ThreadRng,
 }
 
 impl DrawRng for DeckRng {
     fn draw<T, I: Iterator<Item = T> + Sized>(&mut self, iter: I) -> Option<T> {
         iter.choose(&mut self.rng)
+    }
+
+    fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Vec<DeckIndex> {
+        iter.choose_multiple(&mut self.rng, 4)
     }
 }
 
@@ -24,19 +28,315 @@ pub enum Outcome {
     Draw,
 }
 
-pub struct GameState {
+pub struct GameState<R: DrawRng> {
     board: Board,
     players: Players,
     turns_left: u32,
+    rng: R,
 }
 
-impl GameState {
-    pub fn new(board: Board, players: [Player; 2], turns_left: u32) -> Self {
+fn default_deck() -> [Card; 15] {
+    let e: CardSpace = None;
+    let i: CardSpace = Some(InkSpace::Normal);
+    let s: CardSpace = Some(InkSpace::Special);
+    [
+        // Splattershot
+        Card::new(
+            8,
+            [
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, i, i, s, e, e, e],
+                [e, e, i, i, i, i, e, e],
+                [e, e, i, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+            ],
+            3,
+        ),
+        // Slosher
+        Card::new(
+            6,
+            [
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, i, e, e, e, e, e],
+                [e, e, e, s, i, e, e, e],
+                [e, e, i, i, i, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+            ],
+            3,
+        ),
+        // Zapfish
+        Card::new(
+            9,
+            [
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, i, e, e],
+                [e, e, e, i, i, e, e, e],
+                [e, e, e, i, s, i, e, e],
+                [e, e, i, e, i, i, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+            ],
+            4,
+        ),
+        // Blaster
+        Card::new(
+            8,
+            [
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, i, e, e, i, s, e, e],
+                [e, e, i, i, i, i, e, e],
+                [e, e, i, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+            ],
+            3,
+        ),
+        // Splat Dualies
+        Card::new(
+            8,
+            [
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, i, i, i, i, e, e],
+                [e, e, i, s, e, e, e, e],
+                [e, i, i, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+            ],
+            3,
+        ),
+        // Flooder
+        Card::new(
+            14,
+            [
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, i, s, i, i, i, e, e],
+                [e, i, e, i, e, i, e, e],
+                [e, i, e, i, e, i, e, e],
+                [e, i, e, i, e, i, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+            ],
+            5,
+        ),
+        // Splat Roller
+        Card::new(
+            9,
+            [
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, i, i, s, i, i, e, e],
+                [e, e, e, i, i, i, e, e],
+                [e, e, e, i, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+            ],
+            4,
+        ),
+        // Tri-Stringer
+        Card::new(
+            11,
+            [
+                [e, e, e, e, e, e, e, e],
+                [e, i, s, i, i, i, e, e],
+                [e, i, e, i, e, e, e, e],
+                [e, i, i, e, e, e, e, e],
+                [e, i, e, e, e, e, e, e],
+                [e, i, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+            ],
+            4,
+        ),
+        // Chum
+        Card::new(
+            5,
+            [
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, i, e, e, e, e],
+                [e, e, s, i, e, e, e, e],
+                [e, e, e, i, i, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+            ],
+            2,
+        ),
+        // Splat Charger
+        Card::new(
+            8,
+            [
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [i, i, i, i, i, i, i, e],
+                [e, e, s, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+            ],
+            3,
+        ),
+        // Splatana Wiper
+        Card::new(
+            5,
+            [
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, s, e, e, e, e],
+                [e, e, e, i, e, e, e, e],
+                [e, e, e, i, e, e, e, e],
+                [e, e, e, i, e, e, e, e],
+                [e, e, e, i, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+            ],
+            2,
+        ),
+        // SquidForce
+        Card::new(
+            10,
+            [
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, i, e, e, e, e],
+                [e, e, e, i, e, e, e, e],
+                [e, i, i, i, i, i, e, e],
+                [e, e, e, i, s, e, e, e],
+                [e, e, e, i, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+            ],
+            4,
+        ),
+        // Heavy Splatling
+        Card::new(
+            12,
+            [
+                [e, e, e, e, e, e, e, e],
+                [e, i, i, e, e, e, e, e],
+                [e, i, i, e, e, e, e, e],
+                [e, i, i, e, e, e, e, e],
+                [e, e, i, i, e, e, e, e],
+                [e, e, e, i, s, e, e, e],
+                [e, e, e, e, i, i, e, e],
+                [e, e, e, e, e, e, e, e],
+            ],
+            5,
+        ),
+        // Splat Bomb
+        Card::new(
+            3,
+            [
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, s, e, e, e],
+                [e, e, e, i, i, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+            ],
+            1,
+        ),
+        // Marigold
+        Card::new(
+            15,
+            [
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, i, e, e, e, e],
+                [e, e, i, i, i, e, e, e],
+                [e, i, e, i, e, i, e, e],
+                [e, i, i, s, i, i, e, e],
+                [e, e, i, i, i, e, e, e],
+                [e, e, e, e, e, e, e, e],
+                [e, e, e, e, e, e, e, e],
+            ],
+            5,
+        ),
+    ]
+}
+
+impl Default for GameState<DeckRng> {
+    fn default() -> Self {
+        let rng = rand::thread_rng();
+        let ee = BoardSpace::Empty;
+        let s1 = BoardSpace::Special {
+            player_num: PlayerNum::P1,
+            is_activated: false,
+        };
+        let s2 = BoardSpace::Special {
+            player_num: PlayerNum::P2,
+            is_activated: false,
+        };
+        let board = Board::new(vec![
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, s2, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, s1, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+            vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
+        ])
+        .unwrap();
+        let mut deck_rng = DeckRng { rng };
+        let (deck1, hand1) = Deck::draw_hand(default_deck(), &mut deck_rng).unwrap();
+        let (deck2, hand2) = Deck::draw_hand(default_deck(), &mut deck_rng).unwrap();
+
+        let players = [
+            Player::new(hand1, deck1, 0).unwrap(),
+            Player::new(hand2, deck2, 0).unwrap(),
+        ];
+        GameState::new(board, players, 12, deck_rng)
+    }
+}
+
+impl<R: DrawRng> GameState<R> {
+    pub fn new(board: Board, players: [Player; 2], turns_left: u32, rng: R) -> Self {
         GameState {
             board,
             players: Players::new(players),
             turns_left,
+            rng,
         }
+    }
+
+    pub fn board(&self) -> &Board {
+        &self.board
+    }
+
+    pub fn player(&self, player_num: PlayerNum) -> &Player {
+        &self.players[player_num]
     }
 
     pub fn turns_left(&self) -> u32 {
@@ -56,7 +356,7 @@ impl GameState {
 
     // input1: player 1's input
     // input2: player 2's input
-    pub fn update<R: DrawRng>(&mut self, rng: &mut R, input1: ValidInput, input2: ValidInput) {
+    pub fn update(&mut self, input1: ValidInput, input2: ValidInput) {
         let hand_idx1 = input1.hand_idx();
         let hand_idx2 = input2.hand_idx();
         match (input1.get(), input2.get()) {
@@ -77,10 +377,10 @@ impl GameState {
             }
         };
         let player1 = &mut self.players[PlayerNum::P1];
-        player1.replace_card(hand_idx1, rng);
+        player1.replace_card(hand_idx1, &mut self.rng);
         update_special_gauge(player1, PlayerNum::P1, &mut self.board);
         let player2 = &mut self.players[PlayerNum::P2];
-        player2.replace_card(hand_idx2, rng);
+        player2.replace_card(hand_idx2, &mut self.rng);
         update_special_gauge(player2, PlayerNum::P2, &mut self.board);
 
         if self.turns_left > 0 {
@@ -211,307 +511,56 @@ mod tests {
     use crate::tableturf::hand::{Hand, HandIndex};
     use crate::tableturf::input::{Action, Placement, RawInput, Rotation};
 
+    struct MockRng1;
+    struct MockRng2;
+    struct MockRng3;
+
+    impl DrawRng for MockRng1 {
+        fn draw<T, I: Iterator<Item = T> + Sized>(&mut self, mut iter: I) -> Option<T> {
+            iter.next()
+        }
+
+        fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Vec<DeckIndex> {
+            let v: Vec<DeckIndex> = iter.collect();
+            vec![v[0], v[1], v[2], v[3]]
+        }
+    }
+
+    impl DrawRng for MockRng2 {
+        fn draw<T, I: Iterator<Item = T> + Sized>(&mut self, mut iter: I) -> Option<T> {
+            iter.next()
+        }
+
+        fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Vec<DeckIndex> {
+            let v: Vec<DeckIndex> = iter.collect();
+            vec![v[11], v[12], v[13], v[14]]
+        }
+    }
+
+    impl DrawRng for MockRng3 {
+        fn draw<T, I: Iterator<Item = T> + Sized>(&mut self, mut iter: I) -> Option<T> {
+            iter.next()
+        }
+
+        fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Vec<DeckIndex> {
+            let v: Vec<DeckIndex> = iter.collect();
+            vec![v[13], v[1], v[2], v[3]]
+        }
+    }
+
     fn board_pos(board: &Board, x: usize, y: usize) -> BoardPosition {
         BoardPosition::new(board, x, y).unwrap()
     }
 
-    fn card_states() -> [CardState; 15] {
-        let e: CardSpace = None;
-        let i: CardSpace = Some(InkSpace::Normal);
-        let s: CardSpace = Some(InkSpace::Special);
-        [
-            // Splattershot
-            CardState::new(
-                Card::new(
-                    8,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, i, i, s, e, e, e],
-                        [e, e, i, i, i, i, e, e],
-                        [e, e, i, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    3,
-                ),
-                true,
-            ),
-            // Slosher
-            CardState::new(
-                Card::new(
-                    6,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, i, e, e, e, e, e],
-                        [e, e, e, s, i, e, e, e],
-                        [e, e, i, i, i, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    3,
-                ),
-                true,
-            ),
-            // Zapfish
-            CardState::new(
-                Card::new(
-                    9,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, i, e, e],
-                        [e, e, e, i, i, e, e, e],
-                        [e, e, e, i, s, i, e, e],
-                        [e, e, i, e, i, i, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    4,
-                ),
-                true,
-            ),
-            // Blaster
-            CardState::new(
-                Card::new(
-                    8,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, i, e, e, i, s, e, e],
-                        [e, e, i, i, i, i, e, e],
-                        [e, e, i, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    3,
-                ),
-                true,
-            ),
-            // Splat Dualies
-            CardState::new(
-                Card::new(
-                    8,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, i, i, i, i, e, e],
-                        [e, e, i, s, e, e, e, e],
-                        [e, i, i, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    3,
-                ),
-                true,
-            ),
-            // Flooder
-            CardState::new(
-                Card::new(
-                    14,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, i, s, i, i, i, e, e],
-                        [e, i, e, i, e, i, e, e],
-                        [e, i, e, i, e, i, e, e],
-                        [e, i, e, i, e, i, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    5,
-                ),
-                true,
-            ),
-            // Splat Roller
-            CardState::new(
-                Card::new(
-                    9,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, i, i, s, i, i, e, e],
-                        [e, e, e, i, i, i, e, e],
-                        [e, e, e, i, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    4,
-                ),
-                true,
-            ),
-            // Tri-Stringer
-            CardState::new(
-                Card::new(
-                    11,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, i, s, i, i, i, e, e],
-                        [e, i, e, i, e, e, e, e],
-                        [e, i, i, e, e, e, e, e],
-                        [e, i, e, e, e, e, e, e],
-                        [e, i, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    4,
-                ),
-                true,
-            ),
-            // Chum
-            CardState::new(
-                Card::new(
-                    5,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, i, e, e, e, e],
-                        [e, e, s, i, e, e, e, e],
-                        [e, e, e, i, i, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    2,
-                ),
-                true,
-            ),
-            // Splat Charger
-            CardState::new(
-                Card::new(
-                    8,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [i, i, i, i, i, i, i, e],
-                        [e, e, s, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    3,
-                ),
-                true,
-            ),
-            // Splatana Wiper
-            CardState::new(
-                Card::new(
-                    5,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, s, e, e, e, e],
-                        [e, e, e, i, e, e, e, e],
-                        [e, e, e, i, e, e, e, e],
-                        [e, e, e, i, e, e, e, e],
-                        [e, e, e, i, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    2,
-                ),
-                true,
-            ),
-            // SquidForce
-            CardState::new(
-                Card::new(
-                    10,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, i, e, e, e, e],
-                        [e, e, e, i, e, e, e, e],
-                        [e, i, i, i, i, i, e, e],
-                        [e, e, e, i, s, e, e, e],
-                        [e, e, e, i, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    4,
-                ),
-                true,
-            ),
-            // Heavy Splatling
-            CardState::new(
-                Card::new(
-                    12,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, i, i, e, e, e, e, e],
-                        [e, i, i, e, e, e, e, e],
-                        [e, i, i, e, e, e, e, e],
-                        [e, e, i, i, e, e, e, e],
-                        [e, e, e, i, s, e, e, e],
-                        [e, e, e, e, i, i, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    5,
-                ),
-                true,
-            ),
-            // Splat Bomb
-            CardState::new(
-                Card::new(
-                    3,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, s, e, e, e],
-                        [e, e, e, i, i, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    1,
-                ),
-                true,
-            ),
-            // Marigold
-            CardState::new(
-                Card::new(
-                    15,
-                    [
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, i, e, e, e, e],
-                        [e, e, i, i, i, e, e, e],
-                        [e, i, e, i, e, i, e, e],
-                        [e, i, i, s, i, i, e, e],
-                        [e, e, i, i, i, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                        [e, e, e, e, e, e, e, e],
-                    ],
-                    5,
-                ),
-                true,
-            ),
-        ]
+    fn draw_hand1() -> (Deck, Hand) {
+        Deck::draw_hand(default_deck(), &mut MockRng1).unwrap()
     }
 
-    fn default_deck1() -> Deck {
-        let mut card_states = card_states();
-        card_states[0].is_available = false;
-        card_states[1].is_available = false;
-        card_states[2].is_available = false;
-        card_states[3].is_available = false;
-        Deck::new(card_states)
+    fn draw_hand2() -> (Deck, Hand) {
+        Deck::draw_hand(default_deck(), &mut MockRng2).unwrap()
     }
 
-    fn default_deck2() -> Deck {
-        let mut card_states = card_states();
-        card_states[11].is_available = false;
-        card_states[12].is_available = false;
-        card_states[13].is_available = false;
-        card_states[14].is_available = false;
-        Deck::new(card_states)
-    }
-
-    fn game_state1() -> GameState {
+    fn game_state1() -> GameState<MockRng1> {
         let empty = BoardSpace::Empty;
         let p1_ink = BoardSpace::Ink {
             player_num: PlayerNum::P1,
@@ -527,24 +576,16 @@ mod tests {
         ])
         .unwrap();
 
-        let player1 = Player::new(
-            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
-            default_deck1(),
-            0,
-        )
-        .unwrap();
+        let (deck1, hand1) = draw_hand1();
+        let player1 = Player::new(hand1, deck1, 0).unwrap();
 
-        let player2 = Player::new(
-            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
-            default_deck1(),
-            0,
-        )
-        .unwrap();
+        let (deck1, hand1) = draw_hand1();
+        let player2 = Player::new(hand1, deck1, 0).unwrap();
 
-        GameState::new(board, [player1, player2], 12)
+        GameState::new(board, [player1, player2], 12, MockRng1)
     }
 
-    fn game_state2() -> GameState {
+    fn game_state2() -> GameState<MockRng2> {
         let empty = BoardSpace::Empty;
         let p1_ink = BoardSpace::Ink {
             player_num: PlayerNum::P1,
@@ -560,29 +601,16 @@ mod tests {
         ])
         .unwrap();
 
-        let player1 = Player::new(
-            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
-            default_deck1(),
-            0,
-        )
-        .unwrap();
+        let (deck1, hand1) = draw_hand1();
+        let player1 = Player::new(hand1, deck1, 0).unwrap();
 
-        let mut card_states = card_states();
-        card_states[13].is_available = false;
-        card_states[1].is_available = false;
-        card_states[2].is_available = false;
-        card_states[3].is_available = false;
-        let player2 = Player::new(
-            Hand::new([DeckIndex::D14, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
-            Deck::new(card_states),
-            0,
-        )
-        .unwrap();
+        let (deck2, hand2) = Deck::draw_hand(default_deck(), &mut MockRng3).unwrap();
+        let player2 = Player::new(hand2, deck2, 0).unwrap();
 
-        GameState::new(board, [player1, player2], 12)
+        GameState::new(board, [player1, player2], 12, MockRng2)
     }
 
-    fn game_state_offset() -> GameState {
+    fn game_state_offset() -> GameState<MockRng1> {
         let empty = BoardSpace::Empty;
         let p1_ink = BoardSpace::Ink {
             player_num: PlayerNum::P1,
@@ -598,21 +626,13 @@ mod tests {
         ])
         .unwrap();
 
-        let player1 = Player::new(
-            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
-            default_deck1(),
-            0,
-        )
-        .unwrap();
+        let (deck1, hand1) = draw_hand1();
+        let player1 = Player::new(hand1, deck1, 0).unwrap();
 
-        let player2 = Player::new(
-            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
-            default_deck1(),
-            0,
-        )
-        .unwrap();
+        let (deck1, hand1) = draw_hand1();
+        let player2 = Player::new(hand1, deck1, 0).unwrap();
 
-        GameState::new(board, [player1, player2], 12)
+        GameState::new(board, [player1, player2], 12, MockRng1)
     }
 
     #[test]
@@ -679,26 +699,13 @@ mod tests {
         ])
         .unwrap();
 
-        let player1 = Player::new(
-            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
-            default_deck1(),
-            0,
-        )
-        .unwrap();
+        let (deck1, hand1) = draw_hand1();
+        let player1 = Player::new(hand1, deck1, 0).unwrap();
 
-        let player2 = Player::new(
-            Hand::new([
-                DeckIndex::D12,
-                DeckIndex::D13,
-                DeckIndex::D14,
-                DeckIndex::D15,
-            ]),
-            default_deck2(),
-            0,
-        )
-        .unwrap();
+        let (deck2, hand2) = draw_hand2();
+        let player2 = Player::new(hand2, deck2, 0).unwrap();
 
-        let mut game_state = GameState::new(board, [player1, player2], 12);
+        let mut game_state = GameState::new(board, [player1, player2], 12, MockRng1);
 
         let hand_idx = HandIndex::H1;
         game_state.place(
@@ -901,12 +908,8 @@ mod tests {
 
     #[test]
     fn test_update_special_gauge() {
-        let mut player = Player::new(
-            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
-            default_deck1(),
-            0,
-        )
-        .unwrap();
+        let (deck, hand) = draw_hand1();
+        let mut player = Player::new(hand, deck, 0).unwrap();
         let p1_special = BoardSpace::Special {
             player_num: PlayerNum::P1,
             is_activated: false,
@@ -953,21 +956,13 @@ mod tests {
         ])
         .unwrap();
 
-        let player1 = Player::new(
-            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
-            default_deck1(),
-            0,
-        )
-        .unwrap();
+        let (deck, hand) = draw_hand1();
+        let player1 = Player::new(hand, deck, 0).unwrap();
 
-        let player2 = Player::new(
-            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
-            default_deck1(),
-            0,
-        )
-        .unwrap();
+        let (deck, hand) = draw_hand1();
+        let player2 = Player::new(hand, deck, 0).unwrap();
 
-        let game_state_p1_win = GameState::new(board, [player1, player2], 12);
+        let game_state_p1_win = GameState::new(board, [player1, player2], 12, MockRng1);
         let outcome = game_state_p1_win.check_winner();
         assert!(matches!(outcome, Outcome::P1Win));
 
@@ -979,31 +974,15 @@ mod tests {
         ])
         .unwrap();
 
-        let player1 = Player::new(
-            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
-            default_deck1(),
-            0,
-        )
-        .unwrap();
+        let (deck, hand) = draw_hand1();
+        let player1 = Player::new(hand, deck, 0).unwrap();
 
-        let player2 = Player::new(
-            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
-            default_deck1(),
-            0,
-        )
-        .unwrap();
+        let (deck, hand) = draw_hand1();
+        let player2 = Player::new(hand, deck, 0).unwrap();
 
-        let game_state_p2_win = GameState::new(board, [player1, player2], 12);
+        let game_state_p2_win = GameState::new(board, [player1, player2], 12, MockRng1);
         let outcome = game_state_p2_win.check_winner();
         assert!(matches!(outcome, Outcome::P2Win));
-    }
-
-    struct MockRng;
-
-    impl DrawRng for MockRng {
-        fn draw<T, I: Iterator<Item = T> + Sized>(&mut self, mut iter: I) -> Option<T> {
-            iter.next()
-        }
     }
 
     #[test]
@@ -1056,8 +1035,7 @@ mod tests {
         )
         .unwrap();
 
-        let mut rng = MockRng;
-        game_state.update(&mut rng, input1, input2);
+        game_state.update(input1, input2);
         let expected_board = Board::new(vec![
             vec![empty, empty, empty, empty],
             vec![empty, empty, empty, empty],
@@ -1108,8 +1086,7 @@ mod tests {
         )
         .unwrap();
 
-        let mut rng = MockRng;
-        game_state.update(&mut rng, input1, input2);
+        game_state.update(input1, input2);
         let expected_board = Board::new(vec![
             vec![p1_ink, p1_ink, p1_special, empty],
             vec![p1_ink, p1_ink, p1_ink, p1_ink],
@@ -1139,21 +1116,13 @@ mod tests {
         ])
         .unwrap();
 
-        let player1 = Player::new(
-            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
-            default_deck1(),
-            0,
-        )
-        .unwrap();
+        let (deck, hand) = draw_hand1();
+        let player1 = Player::new(hand, deck, 0).unwrap();
 
-        let player2 = Player::new(
-            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
-            default_deck1(),
-            0,
-        )
-        .unwrap();
+        let (deck, hand) = draw_hand1();
+        let player2 = Player::new(hand, deck, 0).unwrap();
 
-        let mut game_state = GameState::new(board, [player1, player2], 1);
+        let mut game_state = GameState::new(board, [player1, player2], 1, MockRng1);
 
         let input1 = ValidInput::new(
             RawInput {
@@ -1187,8 +1156,7 @@ mod tests {
         )
         .unwrap();
 
-        let mut rng = MockRng;
-        game_state.update(&mut rng, input1, input2);
+        game_state.update(input1, input2);
         let expected_board = Board::new(vec![
             vec![p2_ink, p1_ink, p1_special_active, p1_ink],
             vec![p1_ink, p2_special_active, p2_ink, p1_ink],
@@ -1230,21 +1198,13 @@ mod tests {
         ])
         .unwrap();
 
-        let player1 = Player::new(
-            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
-            default_deck1(),
-            7,
-        )
-        .unwrap();
+        let (deck, hand) = draw_hand1();
+        let player1 = Player::new(hand, deck, 7).unwrap();
 
-        let player2 = Player::new(
-            Hand::new([DeckIndex::D1, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]),
-            default_deck1(),
-            8,
-        )
-        .unwrap();
+        let (deck, hand) = draw_hand1();
+        let player2 = Player::new(hand, deck, 8).unwrap();
 
-        let mut game_state = GameState::new(board, [player1, player2], 5);
+        let mut game_state = GameState::new(board, [player1, player2], 5, MockRng1);
 
         let input1 = ValidInput::new(
             RawInput {
@@ -1278,8 +1238,7 @@ mod tests {
         )
         .unwrap();
 
-        let mut rng = MockRng;
-        game_state.update(&mut rng, input1, input2);
+        game_state.update(input1, input2);
         let expected_board = Board::new(vec![
             vec![p2_ink, p1_ink, p1_special_active, p1_special_active],
             vec![p1_ink, p2_special_active, p2_ink, p1_ink],

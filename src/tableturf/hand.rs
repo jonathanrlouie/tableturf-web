@@ -11,6 +11,7 @@ pub enum HandIndex {
     H4,
 }
 
+#[derive(Debug)]
 pub struct Hand([DeckIndex; HAND_SIZE]);
 
 impl Index<HandIndex> for Hand {
