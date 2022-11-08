@@ -1,7 +1,6 @@
 use crate::tableturf::board::{Board, BoardPosition, BoardSpace};
 use crate::tableturf::card::{Card, Grid, InkSpace, ROW_LEN};
-use crate::tableturf::deck::DrawRng;
-use crate::tableturf::hand::HandIndex;
+use crate::tableturf::deck::{HandIndex, DrawRng};
 use crate::tableturf::player::{Player, PlayerNum};
 
 // Represents the number of counter-clockwise rotations applied to a Card
@@ -274,8 +273,7 @@ mod tests {
     use super::*;
     use crate::tableturf::board::{Board, BoardPosition};
     use crate::tableturf::card::{Card, CardSpace, CardState, InkSpace};
-    use crate::tableturf::deck::{Deck, DeckIndex};
-    use crate::tableturf::hand::{Hand, HandIndex};
+    use crate::tableturf::deck::{Hand, HandIndex, Deck, DeckIndex};
 
     struct MockRng;
     struct MockRng2;
@@ -687,7 +685,6 @@ mod tests {
         assert!(placement.is_none());
 
         // Test placing special on top of an inked space
-        let hand = Hand::new([DeckIndex::D14, DeckIndex::D2, DeckIndex::D3, DeckIndex::D4]);
         let board = Board::new(vec![
             vec![empty, p1_ink, empty],
             vec![empty, p1_special, empty],

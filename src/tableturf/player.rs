@@ -1,6 +1,5 @@
 use crate::tableturf::card::Card;
-use crate::tableturf::deck::{Deck, DrawRng};
-use crate::tableturf::hand::{Hand, HandIndex};
+use crate::tableturf::deck::{Hand, HandIndex, Deck, DrawRng};
 use crate::tableturf::input::Placement;
 use std::ops::{Index, IndexMut};
 use serde::Serialize;
