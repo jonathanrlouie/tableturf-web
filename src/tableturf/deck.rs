@@ -1,13 +1,12 @@
-use crate::tableturf::card::{Card, CardState};
+use crate::tableturf::card::Card;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::ops::{Index, IndexMut};
-use serde::Serialize;
-
 
 pub const HAND_SIZE: usize = 4;
 
-#[derive(Copy, Clone)]
+#[derive(Deserialize, Copy, Clone, Debug)]
 pub enum HandIndex {
     H1,
     H2,
@@ -15,7 +14,7 @@ pub enum HandIndex {
     H4,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Clone, Debug)]
 pub struct Hand([DeckIndex; HAND_SIZE]);
 
 impl Index<HandIndex> for Hand {
@@ -117,33 +116,17 @@ pub fn idx_to_usize(index: DeckIndex) -> usize {
 }
 
 #[derive(Serialize, Copy, Clone, Debug)]
-pub struct Deck([CardState; DECK_SIZE]);
-
-impl Index<DeckIndex> for Deck {
-    type Output = CardState;
-    fn index(&self, index: DeckIndex) -> &Self::Output {
-        match index {
-            DeckIndex::D1 => &self.0[0],
-            DeckIndex::D2 => &self.0[1],
-            DeckIndex::D3 => &self.0[2],
-            DeckIndex::D4 => &self.0[3],
-            DeckIndex::D5 => &self.0[4],
-            DeckIndex::D6 => &self.0[5],
-            DeckIndex::D7 => &self.0[6],
-            DeckIndex::D8 => &self.0[7],
-            DeckIndex::D9 => &self.0[8],
-            DeckIndex::D10 => &self.0[9],
-            DeckIndex::D11 => &self.0[10],
-            DeckIndex::D12 => &self.0[11],
-            DeckIndex::D13 => &self.0[12],
-            DeckIndex::D14 => &self.0[13],
-            DeckIndex::D15 => &self.0[14],
-        }
-    }
+pub struct Deck {
+    cards: [Card; DECK_SIZE],
+    // true means the card can be drawn, false means it cannot be drawn
+    card_states: [bool; DECK_SIZE],
 }
 
 impl Deck {
-    pub fn draw_hand<R: DrawRng>(deck: [Card; DECK_SIZE], rng: &mut R) -> Option<(Self, Hand)> {
+    pub fn draw_hand<R: DrawRng>(
+        cards: [Card; DECK_SIZE],
+        rng: &mut R,
+    ) -> Result<(Self, Hand), String> {
         use DeckIndex::*;
         let indices = vec![
             D1, D2, D3, D4, D5, D6, D7, D8, D9, D10, D11, D12, D13, D14, D15,
@@ -151,35 +134,49 @@ impl Deck {
         let hand = rng.draw_hand(indices.into_iter());
         let deduped: HashSet<DeckIndex> = HashSet::from_iter(hand.clone().into_iter());
         if deduped.len() != 4 {
-            return None;
+            return Err("Drawn hand did not contain 4 cards".to_string());
         }
-        let mut deck = [
-            CardState::new(deck[0], true),
-            CardState::new(deck[1], true),
-            CardState::new(deck[2], true),
-            CardState::new(deck[3], true),
-            CardState::new(deck[4], true),
-            CardState::new(deck[5], true),
-            CardState::new(deck[6], true),
-            CardState::new(deck[7], true),
-            CardState::new(deck[8], true),
-            CardState::new(deck[9], true),
-            CardState::new(deck[10], true),
-            CardState::new(deck[11], true),
-            CardState::new(deck[12], true),
-            CardState::new(deck[13], true),
-            CardState::new(deck[14], true),
+        let mut card_states = [
+            true, true, true, true, true, true, true, true, true, true, true, true, true, true,
+            true,
         ];
-        deck[idx_to_usize(hand[0])].is_available = false;
-        deck[idx_to_usize(hand[1])].is_available = false;
-        deck[idx_to_usize(hand[2])].is_available = false;
-        deck[idx_to_usize(hand[3])].is_available = false;
-        Some((Deck(deck), Hand::new([hand[0], hand[1], hand[2], hand[3]])))
+        card_states[idx_to_usize(hand[0])] = false;
+        card_states[idx_to_usize(hand[1])] = false;
+        card_states[idx_to_usize(hand[2])] = false;
+        card_states[idx_to_usize(hand[3])] = false;
+        Ok((
+            Deck { cards, card_states },
+            Hand::new([hand[0], hand[1], hand[2], hand[3]]),
+        ))
+    }
+
+    pub fn index(&self, index: DeckIndex) -> (&Card, &bool) {
+        match index {
+            DeckIndex::D1 => (&self.cards[0], &self.card_states[0]),
+            DeckIndex::D2 => (&self.cards[1], &self.card_states[1]),
+            DeckIndex::D3 => (&self.cards[2], &self.card_states[2]),
+            DeckIndex::D4 => (&self.cards[3], &self.card_states[3]),
+            DeckIndex::D5 => (&self.cards[4], &self.card_states[4]),
+            DeckIndex::D6 => (&self.cards[5], &self.card_states[5]),
+            DeckIndex::D7 => (&self.cards[6], &self.card_states[6]),
+            DeckIndex::D8 => (&self.cards[7], &self.card_states[7]),
+            DeckIndex::D9 => (&self.cards[8], &self.card_states[8]),
+            DeckIndex::D10 => (&self.cards[9], &self.card_states[9]),
+            DeckIndex::D11 => (&self.cards[10], &self.card_states[10]),
+            DeckIndex::D12 => (&self.cards[11], &self.card_states[11]),
+            DeckIndex::D13 => (&self.cards[12], &self.card_states[12]),
+            DeckIndex::D14 => (&self.cards[13], &self.card_states[13]),
+            DeckIndex::D15 => (&self.cards[14], &self.card_states[14]),
+        }
+    }
+
+    pub fn cards(self) -> [Card; DECK_SIZE] {
+        self.cards
     }
 
     pub fn draw_card<R: DrawRng>(&mut self, rng: &mut R) -> Option<DeckIndex> {
-        let (idx, _) = rng.draw(self.0.iter().enumerate().filter(|(_, cs)| cs.is_available))?;
-        self.0[idx].is_available = false;
+        let (idx, _) = rng.draw(self.card_states.iter().enumerate().filter(|(_, cs)| **cs))?;
+        self.card_states[idx] = false;
         parse_idx(idx)
     }
 }

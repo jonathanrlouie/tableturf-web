@@ -1,11 +1,10 @@
-/*
 use crate::{
     client::{Client, Clients, Status},
     ws, Games,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use warp::{http::StatusCode, reply::json, ws::Message, Rejection, Reply};
+use warp::{http::StatusCode, reply::json, Rejection, Reply};
 
 type Result<T> = std::result::Result<T, Rejection>;
 
@@ -63,4 +62,3 @@ pub async fn ws_handler(
 pub async fn health_handler() -> Result<impl Reply> {
     Ok(StatusCode::OK)
 }
-*/

@@ -40,27 +40,3 @@ impl Card {
         self.special
     }
 }
-
-#[derive(Serialize, Copy, Clone, Debug, PartialEq)]
-pub struct CardState {
-    card: Card,
-    pub is_available: bool,
-}
-
-impl CardState {
-    pub fn new(card: Card, is_available: bool) -> Self {
-        CardState { card, is_available }
-    }
-
-    pub fn card(&self) -> Card {
-        self.card
-    }
-
-    pub fn priority(&self) -> u32 {
-        self.card.priority()
-    }
-
-    pub fn special(&self) -> u32 {
-        self.card.special()
-    }
-}

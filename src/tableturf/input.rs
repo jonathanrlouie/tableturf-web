@@ -1,10 +1,11 @@
 use crate::tableturf::board::{Board, BoardPosition, BoardSpace};
 use crate::tableturf::card::{Card, Grid, InkSpace, ROW_LEN};
-use crate::tableturf::deck::{DrawRng, HandIndex};
+use crate::tableturf::deck::HandIndex;
 use crate::tableturf::player::{Player, PlayerNum};
+use serde::Deserialize;
 
 // Represents the number of counter-clockwise rotations applied to a Card
-#[derive(Copy, Clone)]
+#[derive(Deserialize, Copy, Clone, Debug)]
 pub enum Rotation {
     Zero,
     One,
@@ -12,6 +13,7 @@ pub enum Rotation {
     Three,
 }
 
+#[derive(Deserialize, Debug)]
 pub enum Action {
     Pass,
     Place {
@@ -23,21 +25,25 @@ pub enum Action {
     },
 }
 
+#[derive(Deserialize, Debug)]
 pub struct RawInput {
-    pub hand_idx: usize,
+    pub hand_idx: HandIndex,
     pub action: Action,
 }
 
+#[derive(Clone, Debug)]
 pub struct ValidInput {
     hand_idx: HandIndex,
     input: Input,
 }
 
+#[derive(Clone, Debug)]
 pub enum Input {
     Pass,
     Place(Placement),
 }
 
+#[derive(Clone, Debug)]
 pub struct Placement {
     // Inked spaces with absolute board positions
     ink_spaces: Vec<(BoardPosition, InkSpace)>,
@@ -53,7 +59,7 @@ impl Placement {
         board: &Board,
         player: &Player,
         player_num: PlayerNum,
-    ) -> Option<Placement> {
+    ) -> Result<Placement, String> {
         let (board_x, board_y) = board_position;
         let selected_card = player.get_card(hand_idx);
         let grid = rotate_input(&selected_card, rotation);
@@ -70,31 +76,35 @@ impl Placement {
                     .get_absolute_position(x, y, board_x, board_y)
                     .map(|bp| (bp, s))
             })
-            .collect::<Option<Vec<(BoardPosition, InkSpace)>>>()?;
+            .collect::<Result<Vec<(BoardPosition, InkSpace)>, String>>()?;
 
         if special_activated {
             // Check that player has enough special and that the special isn't
             // overlapping any walls or special spaces.
-            if invalid_special_placement(&selected_card, board, player, &ink_spaces[..]) {
-                return None;
+            if player.special < selected_card.special() {
+                return Err("player has insufficient special".to_string());
+            }
+
+            if special_collision(&ink_spaces[..], board) {
+                return Err("special placement is overlapping walls or special spaces".to_string());
             }
 
             // Check that ink placement is adjacent to one of the player's special spaces
             if !placement_adjacent_to_special(&ink_spaces[..], board, player_num) {
-                return None;
+                return Err("special placement not adjacent to a special square".to_string());
             }
         // Check that ink placement is over empty squares
         } else {
             if placement_collision(&ink_spaces[..], board) {
-                return None;
+                return Err("ink placement not over empty tiles".to_string());
             }
 
             // Check that ink placement is adjacent to player's ink
             if !placement_adjacent_to_ink(&ink_spaces[..], board, player_num) {
-                return None;
+                return Err("ink placement not adjacent to player's ink".to_string());
             }
         }
-        Some(Placement {
+        Ok(Placement {
             ink_spaces,
             special_activated,
         })
@@ -126,18 +136,10 @@ impl ValidInput {
         board: &Board,
         player: &Player,
         player_num: PlayerNum,
-    ) -> Option<Self> {
-        // Ensure given index is within the range of 0..4
-        let hand_idx = match input.hand_idx {
-            0 => HandIndex::H1,
-            1 => HandIndex::H2,
-            2 => HandIndex::H3,
-            3 => HandIndex::H4,
-            _ => return None,
-        };
-
+    ) -> Result<Self, String> {
+        let hand_idx = input.hand_idx;
         match input.action {
-            Action::Pass => Some(Self {
+            Action::Pass => Ok(Self {
                 hand_idx,
                 input: Input::Pass,
             }),
@@ -157,7 +159,7 @@ impl ValidInput {
                     player_num,
                 )?;
 
-                Some(Self {
+                Ok(Self {
                     hand_idx,
                     input: Input::Place(placement),
                 })
@@ -226,16 +228,6 @@ fn special_collision(inked_spaces: &[(BoardPosition, InkSpace)], board: &Board) 
     })
 }
 
-fn invalid_special_placement(
-    selected_card: &Card,
-    board: &Board,
-    player: &Player,
-    ink_spaces: &[(BoardPosition, InkSpace)],
-) -> bool {
-    let not_enough_special = player.special < selected_card.special();
-    not_enough_special || special_collision(ink_spaces, board)
-}
-
 fn rotate_grid_ccw(grid: &mut Grid) {
     for i in 0..(ROW_LEN / 2) {
         for j in i..(ROW_LEN - i - 1) {
@@ -272,7 +264,7 @@ fn rotate_input(card: &Card, rotation: Rotation) -> Grid {
 mod tests {
     use super::*;
     use crate::tableturf::board::{Board, BoardPosition};
-    use crate::tableturf::card::{Card, CardSpace, CardState, InkSpace};
+    use crate::tableturf::card::{Card, CardSpace, InkSpace};
     use crate::tableturf::deck::{Deck, DeckIndex, Hand, HandIndex};
 
     struct MockRng;

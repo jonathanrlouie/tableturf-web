@@ -1,18 +1,16 @@
 use crate::client::Clients;
-use crate::tableturf::GameState;
-use std::collections::HashMap;
+use crate::game::Games;
+use hashbrown::HashMap;
 use std::convert::Infallible;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use warp::Filter;
 
 mod client;
+mod game;
 mod handler;
 mod tableturf;
 mod ws;
-
-/*
-type Games = Arc<RwLock<HashMap<String, GameState>>>;
 
 #[tokio::main]
 async fn main() {
@@ -55,6 +53,3 @@ fn with_clients(clients: Clients) -> impl Filter<Extract = (Clients,), Error = I
 fn with_games(games: Games) -> impl Filter<Extract = (Games,), Error = Infallible> + Clone {
     warp::any().map(move || games.clone())
 }
-*/
-
-fn main() {}

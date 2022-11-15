@@ -51,17 +51,21 @@ impl BoardPosition {
     // - x coordinate does not exceed Board row length
     // - y coordinate does not exceed Board column height
     // - x and y coordinates can be converted into i32s safely
-    pub fn new(board: &Board, x: usize, y: usize) -> Option<Self> {
+    pub fn new(board: &Board, x: usize, y: usize) -> Result<Self, String> {
         if x >= board.get()[0].len() {
-            return None;
+            return Err("x position exceeds board width".to_string());
         }
         if y >= board.get().len() {
-            return None;
+            return Err("y position exceeds board height".to_string());
         }
         // Ensure that x and y can be safely converted into i32s later
-        let _: i32 = x.try_into().ok()?;
-        let _: i32 = y.try_into().ok()?;
-        Some(BoardPosition(x, y))
+        let _: i32 = x
+            .try_into()
+            .map_err(|_| "x position could not be converted to i32")?;
+        let _: i32 = y
+            .try_into()
+            .map_err(|_| "y position could not be converted to i32")?;
+        Ok(BoardPosition(x, y))
     }
 
     pub fn x(&self) -> usize {
@@ -115,7 +119,7 @@ pub const MAX_BOARD_WIDTH: usize = 26;
 pub const MAX_BOARD_HEIGHT: usize = 26;
 
 // This cannot be an array, because custom boards might be loaded at runtime
-#[derive(Serialize, Debug, PartialEq)]
+#[derive(Serialize, Clone, Debug, PartialEq)]
 pub struct Board(Vec<Vec<BoardSpace>>);
 
 impl Board {
@@ -125,25 +129,31 @@ impl Board {
     // - column height does not exceed the max board height
     // - board contains at least one row
     // - rows contain at least one space
-    pub fn new(spaces: Vec<Vec<BoardSpace>>) -> Option<Self> {
+    pub fn new(spaces: Vec<Vec<BoardSpace>>) -> Result<Self, String> {
         if spaces.is_empty() {
-            return None;
+            return Err("Board with no rows given".to_string());
         }
         if spaces.len() > MAX_BOARD_HEIGHT {
-            return None;
+            return Err(format!(
+                "Board height exceeds the maximum height of {} spaces",
+                MAX_BOARD_HEIGHT
+            ));
         }
-        let row = spaces.get(0)?;
+        let row = spaces.get(0).ok_or("Board contains no rows")?;
         if row.is_empty() {
-            return None;
+            return Err("Board contains empty rows".to_string());
         }
         let row_len = row.len();
         if row_len > MAX_BOARD_WIDTH {
-            return None;
+            return Err(format!(
+                "Board width exceeds the maximum width of {} spaces",
+                MAX_BOARD_WIDTH
+            ));
         }
         if spaces.iter().any(|row| row.len() != row_len) {
-            return None;
+            return Err("Not all board rows have the same length".to_string());
         }
-        Some(Board(spaces))
+        Ok(Board(spaces))
     }
 
     pub fn get(&self) -> &Vec<Vec<BoardSpace>> {
@@ -208,13 +218,23 @@ impl Board {
         y_offset: usize,
         board_x: i32,
         board_y: i32,
-    ) -> Option<BoardPosition> {
-        let x_offset: i32 = x_offset.try_into().ok()?;
-        let y_offset: i32 = y_offset.try_into().ok()?;
-        let x = i32::checked_add(board_x, x_offset)?;
-        let y = i32::checked_add(board_y, y_offset)?;
-        let x: usize = x.try_into().ok()?;
-        let y: usize = y.try_into().ok()?;
+    ) -> Result<BoardPosition, String> {
+        let x_offset: i32 = x_offset
+            .try_into()
+            .map_err(|_| "x offset could not be converted to i32".to_string())?;
+        let y_offset: i32 = y_offset
+            .try_into()
+            .map_err(|_| "y offset could not be converted to i32".to_string())?;
+        let x =
+            i32::checked_add(board_x, x_offset).ok_or("absolute x position outside of board")?;
+        let y =
+            i32::checked_add(board_y, y_offset).ok_or("absolute y position outside of board")?;
+        let x: usize = x
+            .try_into()
+            .map_err(|_| "absolute x position could not be converted to a usize")?;
+        let y: usize = y
+            .try_into()
+            .map_err(|_| "absolute y position could not be converted to a usize")?;
         BoardPosition::new(self, x, y)
     }
 }

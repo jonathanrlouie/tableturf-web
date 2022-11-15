@@ -37,7 +37,7 @@ impl Players {
     }
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Clone, Debug)]
 pub struct Player {
     hand: Hand,
     deck: Deck,
@@ -45,25 +45,12 @@ pub struct Player {
 }
 
 impl Player {
-    // Enforce the following constraints:
-    // - Every card in hand is unavailable in the deck
-    pub fn new(hand: Hand, deck: Deck, special: u32) -> Option<Self> {
-        let card1 = hand[HandIndex::H1];
-        let card2 = hand[HandIndex::H2];
-        let card3 = hand[HandIndex::H3];
-        let card4 = hand[HandIndex::H4];
-        if deck[card1].is_available
-            || deck[card2].is_available
-            || deck[card3].is_available
-            || deck[card4].is_available
-        {
-            return None;
-        }
-        Some(Player {
+    pub fn new(hand: Hand, deck: Deck, special: u32) -> Self {
+        Player {
             hand,
             deck,
             special,
-        })
+        }
     }
 
     pub fn hand(&self) -> &Hand {
@@ -75,7 +62,13 @@ impl Player {
     }
 
     pub fn get_card(&self, hand_idx: HandIndex) -> Card {
-        self.deck[self.hand[hand_idx]].card()
+        *self.deck.index(self.hand[hand_idx]).0
+    }
+
+    pub fn redraw_hand<R: DrawRng>(&mut self, rng: &mut R) {
+        let (deck, hand) = Deck::draw_hand(self.deck.cards(), rng).unwrap();
+        self.hand = hand;
+        self.deck = deck;
     }
 
     pub fn replace_card<R: DrawRng>(&mut self, idx: HandIndex, rng: &mut R) {
@@ -87,8 +80,8 @@ impl Player {
 
     pub fn spend_special(&mut self, placement: &Placement, hand_idx: HandIndex) {
         if placement.is_special_activated() {
-            let selected_card = self.deck[self.hand[hand_idx]];
-            self.special -= selected_card.special();
+            let (card, _) = self.deck.index(self.hand[hand_idx]);
+            self.special -= card.special();
         }
     }
 }
@@ -96,7 +89,7 @@ impl Player {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tableturf::card::{Card, CardState};
+    use crate::tableturf::card::Card;
     use crate::tableturf::deck::{DeckIndex, DrawRng};
 
     struct MockRng;
@@ -134,7 +127,7 @@ mod tests {
             &mut MockRng,
         )
         .unwrap();
-        let mut player = Player::new(hand, deck, 0).unwrap();
+        let mut player = Player::new(hand, deck, 0);
         player.replace_card(HandIndex::H1, &mut MockRng);
         let deck_idx = player.hand[HandIndex::H1];
         assert_eq!(deck_idx, DeckIndex::D5);

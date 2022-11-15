@@ -4,11 +4,19 @@ use crate::tableturf::deck::{Deck, DeckIndex, DrawRng, HandIndex};
 use crate::tableturf::input::{Input, Placement, ValidInput};
 use crate::tableturf::player::{Player, PlayerNum, Players};
 use rand::prelude::IteratorRandom;
-use rand::rngs::ThreadRng;
+use rand::rngs::StdRng;
+use rand::SeedableRng;
 use std::cmp::Ordering;
 
 pub struct DeckRng {
-    rng: ThreadRng,
+    rng: StdRng,
+}
+
+impl Default for DeckRng {
+    fn default() -> Self {
+        let rng = StdRng::from_rng(rand::thread_rng()).unwrap();
+        DeckRng { rng }
+    }
 }
 
 impl DrawRng for DeckRng {
@@ -21,6 +29,7 @@ impl DrawRng for DeckRng {
     }
 }
 
+#[derive(Debug)]
 pub enum Outcome {
     P1Win,
     P2Win,
@@ -267,9 +276,10 @@ fn default_deck() -> [Card; 15] {
     ]
 }
 
-impl Default for GameState<DeckRng> {
+impl<R: DrawRng + Default> Default for GameState<R> {
     fn default() -> Self {
-        let rng = rand::thread_rng();
+        //let rng = StdRng::from_rng(rand::thread_rng()).unwrap();
+        let mut rng = R::default();
         let ee = BoardSpace::Empty;
         let s1 = BoardSpace::Special {
             player_num: PlayerNum::P1,
@@ -308,15 +318,11 @@ impl Default for GameState<DeckRng> {
             vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
         ])
         .unwrap();
-        let mut deck_rng = DeckRng { rng };
-        let (deck1, hand1) = Deck::draw_hand(default_deck(), &mut deck_rng).unwrap();
-        let (deck2, hand2) = Deck::draw_hand(default_deck(), &mut deck_rng).unwrap();
+        let (deck1, hand1) = Deck::draw_hand(default_deck(), &mut rng).unwrap();
+        let (deck2, hand2) = Deck::draw_hand(default_deck(), &mut rng).unwrap();
 
-        let players = [
-            Player::new(hand1, deck1, 0).unwrap(),
-            Player::new(hand2, deck2, 0).unwrap(),
-        ];
-        GameState::new(board, players, 12, deck_rng)
+        let players = [Player::new(hand1, deck1, 0), Player::new(hand2, deck2, 0)];
+        GameState::new(board, players, 12, rng)
     }
 }
 
@@ -351,6 +357,10 @@ impl<R: DrawRng> GameState<R> {
             Ordering::Less => Outcome::P2Win,
             Ordering::Equal => Outcome::Draw,
         }
+    }
+
+    pub fn redraw_hand(&mut self, player_num: PlayerNum) {
+        self.players[player_num].redraw_hand(&mut self.rng);
     }
 
     // input1: player 1's input
@@ -402,10 +412,10 @@ impl<R: DrawRng> GameState<R> {
     ) {
         // Spend special, if activated
         let player1 = &mut self.players[PlayerNum::P1];
-        let priority1 = player1.deck()[player1.hand()[hand_idx1]].priority();
+        let priority1 = player1.deck().index(player1.hand()[hand_idx1]).0.priority();
         player1.spend_special(&placement1, hand_idx1);
         let player2 = &mut self.players[PlayerNum::P2];
-        let priority2 = player2.deck()[player2.hand()[hand_idx2]].priority();
+        let priority2 = player2.deck().index(player2.hand()[hand_idx2]).0.priority();
         player2.spend_special(&placement2, hand_idx2);
 
         let overlap: Vec<(BoardPosition, InkSpace, InkSpace)> = placement1
@@ -505,7 +515,7 @@ fn update_special_gauge(player: &mut Player, player_num: PlayerNum, board: &mut 
 mod tests {
     use super::*;
     use crate::tableturf::board::{Board, BoardPosition};
-    use crate::tableturf::card::{Card, CardSpace, CardState};
+    use crate::tableturf::card::{Card, CardSpace};
     use crate::tableturf::deck::{Deck, DeckIndex, Hand, HandIndex};
     use crate::tableturf::input::{Action, Placement, RawInput, Rotation};
 
@@ -575,10 +585,10 @@ mod tests {
         .unwrap();
 
         let (deck1, hand1) = draw_hand1();
-        let player1 = Player::new(hand1, deck1, 0).unwrap();
+        let player1 = Player::new(hand1, deck1, 0);
 
         let (deck1, hand1) = draw_hand1();
-        let player2 = Player::new(hand1, deck1, 0).unwrap();
+        let player2 = Player::new(hand1, deck1, 0);
 
         GameState::new(board, [player1, player2], 12, MockRng1)
     }
@@ -600,10 +610,10 @@ mod tests {
         .unwrap();
 
         let (deck1, hand1) = draw_hand1();
-        let player1 = Player::new(hand1, deck1, 0).unwrap();
+        let player1 = Player::new(hand1, deck1, 0);
 
         let (deck2, hand2) = Deck::draw_hand(default_deck(), &mut MockRng3).unwrap();
-        let player2 = Player::new(hand2, deck2, 0).unwrap();
+        let player2 = Player::new(hand2, deck2, 0);
 
         GameState::new(board, [player1, player2], 12, MockRng2)
     }
@@ -625,10 +635,10 @@ mod tests {
         .unwrap();
 
         let (deck1, hand1) = draw_hand1();
-        let player1 = Player::new(hand1, deck1, 0).unwrap();
+        let player1 = Player::new(hand1, deck1, 0);
 
         let (deck1, hand1) = draw_hand1();
-        let player2 = Player::new(hand1, deck1, 0).unwrap();
+        let player2 = Player::new(hand1, deck1, 0);
 
         GameState::new(board, [player1, player2], 12, MockRng1)
     }
@@ -698,10 +708,10 @@ mod tests {
         .unwrap();
 
         let (deck1, hand1) = draw_hand1();
-        let player1 = Player::new(hand1, deck1, 0).unwrap();
+        let player1 = Player::new(hand1, deck1, 0);
 
         let (deck2, hand2) = draw_hand2();
-        let player2 = Player::new(hand2, deck2, 0).unwrap();
+        let player2 = Player::new(hand2, deck2, 0);
 
         let mut game_state = GameState::new(board, [player1, player2], 12, MockRng1);
 
@@ -907,7 +917,7 @@ mod tests {
     #[test]
     fn test_update_special_gauge() {
         let (deck, hand) = draw_hand1();
-        let mut player = Player::new(hand, deck, 0).unwrap();
+        let mut player = Player::new(hand, deck, 0);
         let p1_special = BoardSpace::Special {
             player_num: PlayerNum::P1,
             is_activated: false,
@@ -955,10 +965,10 @@ mod tests {
         .unwrap();
 
         let (deck, hand) = draw_hand1();
-        let player1 = Player::new(hand, deck, 0).unwrap();
+        let player1 = Player::new(hand, deck, 0);
 
         let (deck, hand) = draw_hand1();
-        let player2 = Player::new(hand, deck, 0).unwrap();
+        let player2 = Player::new(hand, deck, 0);
 
         let game_state_p1_win = GameState::new(board, [player1, player2], 12, MockRng1);
         let outcome = game_state_p1_win.check_winner();
@@ -973,10 +983,10 @@ mod tests {
         .unwrap();
 
         let (deck, hand) = draw_hand1();
-        let player1 = Player::new(hand, deck, 0).unwrap();
+        let player1 = Player::new(hand, deck, 0);
 
         let (deck, hand) = draw_hand1();
-        let player2 = Player::new(hand, deck, 0).unwrap();
+        let player2 = Player::new(hand, deck, 0);
 
         let game_state_p2_win = GameState::new(board, [player1, player2], 12, MockRng1);
         let outcome = game_state_p2_win.check_winner();
@@ -1115,10 +1125,10 @@ mod tests {
         .unwrap();
 
         let (deck, hand) = draw_hand1();
-        let player1 = Player::new(hand, deck, 0).unwrap();
+        let player1 = Player::new(hand, deck, 0);
 
         let (deck, hand) = draw_hand1();
-        let player2 = Player::new(hand, deck, 0).unwrap();
+        let player2 = Player::new(hand, deck, 0);
 
         let mut game_state = GameState::new(board, [player1, player2], 1, MockRng1);
 
@@ -1197,10 +1207,10 @@ mod tests {
         .unwrap();
 
         let (deck, hand) = draw_hand1();
-        let player1 = Player::new(hand, deck, 7).unwrap();
+        let player1 = Player::new(hand, deck, 7);
 
         let (deck, hand) = draw_hand1();
-        let player2 = Player::new(hand, deck, 8).unwrap();
+        let player2 = Player::new(hand, deck, 8);
 
         let mut game_state = GameState::new(board, [player1, player2], 5, MockRng1);
 
