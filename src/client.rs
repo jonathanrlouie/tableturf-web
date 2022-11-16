@@ -19,3 +19,4 @@ pub struct Client {
     pub status: Status,
     pub sender: Option<mpsc::UnboundedSender<std::result::Result<Message, warp::Error>>>,
 }
+
