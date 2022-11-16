@@ -7,9 +7,7 @@ use serde::Serialize;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use uuid::Uuid;
-use warp::{
-    ws::{Message, WebSocket},
-};
+use warp::ws::{Message, WebSocket};
 
 #[derive(Serialize, Debug)]
 pub struct GameStateResponse {

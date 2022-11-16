@@ -213,23 +213,15 @@ mod tests {
             [empty, empty, empty, empty, empty, empty, empty, empty],
         ];
         let card = Card::new(0, spaces, 0);
-        let mut deck = Deck::draw_hand([
-            card,
-            card,
-            card,
-            card,
-            card,
-            card,
-            card,
-            card,
-            card,
-            card,
-            card,
-            card,
-            card,
-            card,
-            card,
-        ], &mut MockRng).unwrap().0;
+        let mut deck = Deck::draw_hand(
+            [
+                card, card, card, card, card, card, card, card, card, card, card, card, card, card,
+                card,
+            ],
+            &mut MockRng,
+        )
+        .unwrap()
+        .0;
         let idx = deck.draw_card(&mut MockRng);
         assert!(idx.is_some());
         assert_eq!(idx.unwrap(), DeckIndex::D5);

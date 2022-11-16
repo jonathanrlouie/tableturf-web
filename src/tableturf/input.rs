@@ -265,7 +265,7 @@ mod tests {
     use super::*;
     use crate::tableturf::board::{Board, BoardPosition};
     use crate::tableturf::card::{Card, CardSpace, InkSpace};
-    use crate::tableturf::deck::{DrawRng, Deck, DeckIndex, Hand, HandIndex};
+    use crate::tableturf::deck::{Deck, DeckIndex, DrawRng, Hand, HandIndex};
 
     struct MockRng;
     struct MockRng2;
@@ -694,7 +694,7 @@ mod tests {
         );
         assert!(placement.is_ok());
 
-        let (draw, hand) = draw_hand();
+        let (_draw, hand) = draw_hand();
         let player_no_special = Player::new(hand, deck, 0);
         // Test placing special with insufficient special meter
         let board = Board::new(vec![
