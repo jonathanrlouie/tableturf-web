@@ -246,21 +246,21 @@ mod tests {
     #[test]
     fn test_construct_board() {
         let no_rows = Board::new(vec![]);
-        assert!(no_rows.is_none());
+        assert!(no_rows.is_err());
 
         let empty_row = Board::new(vec![vec![]]);
-        assert!(empty_row.is_none());
+        assert!(empty_row.is_err());
 
         let wall = BoardSpace::Wall;
         let empty = BoardSpace::Empty;
         let uneven_rows = Board::new(vec![vec![wall], vec![wall, wall]]);
-        assert!(uneven_rows.is_none());
+        assert!(uneven_rows.is_err());
 
         let too_wide_board = Board::new(vec![vec![
             wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
         ]]);
-        assert!(too_wide_board.is_none());
+        assert!(too_wide_board.is_err());
 
         let too_tall_board = Board::new(vec![
             vec![wall],
@@ -291,13 +291,13 @@ mod tests {
             vec![wall],
             vec![wall],
         ]);
-        assert!(too_tall_board.is_none());
+        assert!(too_tall_board.is_err());
 
         let min_valid_board = Board::new(vec![vec![wall]]);
-        assert!(min_valid_board.is_some());
+        assert!(min_valid_board.is_ok());
 
         let valid_board = Board::new(vec![vec![wall, wall], vec![wall, empty]]);
-        assert!(valid_board.is_some());
+        assert!(valid_board.is_ok());
 
         let max_valid_board = Board::new(vec![
             vec![
@@ -405,7 +405,7 @@ mod tests {
                 wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall, wall,
             ],
         ]);
-        assert!(max_valid_board.is_some());
+        assert!(max_valid_board.is_ok());
     }
 
     #[test]
@@ -413,13 +413,13 @@ mod tests {
         let empty = BoardSpace::Empty;
         let board = Board::new(vec![vec![empty, empty], vec![empty, empty]]).unwrap();
         let outside_row = BoardPosition::new(&board, 2, 0);
-        assert!(outside_row.is_none());
+        assert!(outside_row.is_err());
         let outside_col = BoardPosition::new(&board, 0, 2);
-        assert!(outside_col.is_none());
+        assert!(outside_col.is_err());
         let outside_row_and_col = BoardPosition::new(&board, 2, 2);
-        assert!(outside_row_and_col.is_none());
+        assert!(outside_row_and_col.is_err());
         let valid_pos = BoardPosition::new(&board, 1, 1);
-        assert!(valid_pos.is_some());
+        assert!(valid_pos.is_ok());
     }
 
     #[test]
@@ -597,13 +597,13 @@ mod tests {
         let empty = BoardSpace::Empty;
         let board = Board::new(vec![vec![empty, empty], vec![empty, empty]]).unwrap();
         let valid_pos = board.get_absolute_position(7, 7, -7, -7);
-        assert!(valid_pos.is_some());
+        assert!(valid_pos.is_ok());
         assert_eq!(
             valid_pos.unwrap(),
             BoardPosition::new(&board, 0, 0).unwrap()
         );
 
         let invalid_pos = board.get_absolute_position(7, 7, -8, -8);
-        assert!(invalid_pos.is_none());
+        assert!(invalid_pos.is_err());
     }
 }

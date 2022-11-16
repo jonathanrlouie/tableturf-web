@@ -213,68 +213,44 @@ mod tests {
             [empty, empty, empty, empty, empty, empty, empty, empty],
         ];
         let card = Card::new(0, spaces, 0);
-        let available_card = CardState::new(card, true);
-        let unavailable_card = CardState::new(card, false);
-        let mut deck = Deck([
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-        ]);
+        let mut deck = Deck::draw_hand([
+            card,
+            card,
+            card,
+            card,
+            card,
+            card,
+            card,
+            card,
+            card,
+            card,
+            card,
+            card,
+            card,
+            card,
+            card,
+        ], &mut MockRng).unwrap().0;
         let idx = deck.draw_card(&mut MockRng);
         assert!(idx.is_some());
-        assert_eq!(idx.unwrap(), DeckIndex::D1);
+        assert_eq!(idx.unwrap(), DeckIndex::D5);
 
-        let mut unavailable_card_deck = Deck([
-            unavailable_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-            available_card,
-        ]);
-        let idx = unavailable_card_deck.draw_card(&mut MockRng);
+        let idx = deck.draw_card(&mut MockRng);
         assert!(idx.is_some());
-        assert_eq!(idx.unwrap(), DeckIndex::D2);
+        assert_eq!(idx.unwrap(), DeckIndex::D6);
 
-        let mut empty_deck = Deck([
-            unavailable_card,
-            unavailable_card,
-            unavailable_card,
-            unavailable_card,
-            unavailable_card,
-            unavailable_card,
-            unavailable_card,
-            unavailable_card,
-            unavailable_card,
-            unavailable_card,
-            unavailable_card,
-            unavailable_card,
-            unavailable_card,
-            unavailable_card,
-            unavailable_card,
-        ]);
-        let no_card = empty_deck.draw_card(&mut MockRng);
+        let _ = deck.draw_card(&mut MockRng);
+        let _ = deck.draw_card(&mut MockRng);
+        let _ = deck.draw_card(&mut MockRng);
+        let _ = deck.draw_card(&mut MockRng);
+        let _ = deck.draw_card(&mut MockRng);
+        let _ = deck.draw_card(&mut MockRng);
+        let _ = deck.draw_card(&mut MockRng);
+        let _ = deck.draw_card(&mut MockRng);
+        let idx = deck.draw_card(&mut MockRng);
+        assert!(idx.is_some());
+        assert_eq!(idx.unwrap(), DeckIndex::D15);
+
+        let no_card = deck.draw_card(&mut MockRng);
         assert!(no_card.is_none());
     }
 }

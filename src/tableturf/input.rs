@@ -265,7 +265,7 @@ mod tests {
     use super::*;
     use crate::tableturf::board::{Board, BoardPosition};
     use crate::tableturf::card::{Card, CardSpace, InkSpace};
-    use crate::tableturf::deck::{Deck, DeckIndex, Hand, HandIndex};
+    use crate::tableturf::deck::{DrawRng, Deck, DeckIndex, Hand, HandIndex};
 
     struct MockRng;
     struct MockRng2;
@@ -632,7 +632,7 @@ mod tests {
         .unwrap();
         let (deck, hand) = draw_hand2();
         let special = 5;
-        let player = Player::new(hand, deck, special).unwrap();
+        let player = Player::new(hand, deck, special);
         let placement = Placement::new(
             (-3, -3),
             false,
@@ -642,7 +642,7 @@ mod tests {
             &player,
             PlayerNum::P1,
         );
-        assert!(placement.is_some());
+        assert!(placement.is_ok());
         let placement = placement.unwrap();
         assert_eq!(placement.ink_spaces.len(), 3);
         assert_eq!(
@@ -674,7 +674,7 @@ mod tests {
             &player,
             PlayerNum::P1,
         );
-        assert!(placement.is_none());
+        assert!(placement.is_err());
 
         // Test placing special on top of an inked space
         let board = Board::new(vec![
@@ -692,10 +692,10 @@ mod tests {
             &player,
             PlayerNum::P1,
         );
-        assert!(placement.is_some());
+        assert!(placement.is_ok());
 
         let (draw, hand) = draw_hand();
-        let player_no_special = Player::new(hand, deck, 0).unwrap();
+        let player_no_special = Player::new(hand, deck, 0);
         // Test placing special with insufficient special meter
         let board = Board::new(vec![
             vec![empty, p1_ink, empty],
@@ -712,7 +712,7 @@ mod tests {
             &player_no_special,
             PlayerNum::P1,
         );
-        assert!(placement.is_none());
+        assert!(placement.is_err());
 
         // Test placing special on top of a special space
         let board = Board::new(vec![
@@ -730,7 +730,7 @@ mod tests {
             &player,
             PlayerNum::P1,
         );
-        assert!(placement.is_none());
+        assert!(placement.is_err());
 
         // Test placing ink without any ink nearby
         let board = Board::new(vec![
@@ -748,7 +748,7 @@ mod tests {
             &player,
             PlayerNum::P1,
         );
-        assert!(placement.is_none());
+        assert!(placement.is_err());
 
         // Test placing special without any special nearby
         let board = Board::new(vec![
@@ -766,7 +766,7 @@ mod tests {
             &player,
             PlayerNum::P1,
         );
-        assert!(placement.is_none());
+        assert!(placement.is_err());
 
         // Test placing ink with a special space nearby
         let board = Board::new(vec![
@@ -784,7 +784,7 @@ mod tests {
             &player,
             PlayerNum::P1,
         );
-        assert!(placement.is_some());
+        assert!(placement.is_ok());
     }
 
     #[test]
@@ -1005,32 +1005,22 @@ mod tests {
         .unwrap();
         let (deck, hand) = draw_hand2();
         let special = 5;
-        let player = Player::new(hand, deck, special).unwrap();
+        let player = Player::new(hand, deck, special);
         let input = ValidInput::new(
             RawInput {
-                hand_idx: 0,
+                hand_idx: HandIndex::H1,
                 action: Action::Pass,
             },
             &board,
             &player,
             PlayerNum::P1,
         );
-        assert!(input.is_some());
+        assert!(input.is_ok());
 
+        // Test placing a card just out of bounds in the top-left
         let input = ValidInput::new(
             RawInput {
-                hand_idx: 5,
-                action: Action::Pass,
-            },
-            &board,
-            &player,
-            PlayerNum::P1,
-        );
-        assert!(input.is_none());
-
-        let input = ValidInput::new(
-            RawInput {
-                hand_idx: 2,
+                hand_idx: HandIndex::H3,
                 action: Action::Place {
                     x: -8,
                     y: -8,
@@ -1042,11 +1032,12 @@ mod tests {
             &player,
             PlayerNum::P1,
         );
-        assert!(input.is_none());
+        assert!(input.is_err());
 
+        // Test placing a card as far to the top-left as possible
         let input = ValidInput::new(
             RawInput {
-                hand_idx: 2,
+                hand_idx: HandIndex::H3,
                 action: Action::Place {
                     x: -7,
                     y: -7,
@@ -1058,11 +1049,12 @@ mod tests {
             &player,
             PlayerNum::P1,
         );
-        assert!(input.is_some());
+        assert!(input.is_ok());
 
+        // Test placing a card as far to the bottom-right as possible
         let input = ValidInput::new(
             RawInput {
-                hand_idx: 1,
+                hand_idx: HandIndex::H2,
                 action: Action::Place {
                     x: 2,
                     y: 2,
@@ -1074,11 +1066,12 @@ mod tests {
             &player,
             PlayerNum::P1,
         );
-        assert!(input.is_some());
+        assert!(input.is_ok());
 
+        // Test placing a card just out of bounds in the bottom-right
         let input = ValidInput::new(
             RawInput {
-                hand_idx: 1,
+                hand_idx: HandIndex::H2,
                 action: Action::Place {
                     x: 3,
                     y: 2,
@@ -1090,6 +1083,6 @@ mod tests {
             &player,
             PlayerNum::P1,
         );
-        assert!(input.is_none());
+        assert!(input.is_err());
     }
 }

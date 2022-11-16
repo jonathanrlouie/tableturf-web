@@ -131,6 +131,6 @@ mod tests {
         player.replace_card(HandIndex::H1, &mut MockRng);
         let deck_idx = player.hand[HandIndex::H1];
         assert_eq!(deck_idx, DeckIndex::D5);
-        assert_eq!(player.deck()[deck_idx].is_available, false);
+        assert_eq!(*player.deck().index(deck_idx).1, false);
     }
 }

@@ -515,7 +515,6 @@ fn update_special_gauge(player: &mut Player, player_num: PlayerNum, board: &mut 
 mod tests {
     use super::*;
     use crate::tableturf::board::{Board, BoardPosition};
-    use crate::tableturf::card::{Card, CardSpace};
     use crate::tableturf::deck::{Deck, DeckIndex, Hand, HandIndex};
     use crate::tableturf::input::{Action, Placement, RawInput, Rotation};
 
@@ -1023,7 +1022,7 @@ mod tests {
 
         let input1 = ValidInput::new(
             RawInput {
-                hand_idx: 0,
+                hand_idx: HandIndex::H1,
                 action: Action::Pass,
             },
             &game_state.board,
@@ -1034,7 +1033,7 @@ mod tests {
 
         let input2 = ValidInput::new(
             RawInput {
-                hand_idx: 0,
+                hand_idx: HandIndex::H1,
                 action: Action::Pass,
             },
             &game_state.board,
@@ -1069,7 +1068,7 @@ mod tests {
 
         let input1 = ValidInput::new(
             RawInput {
-                hand_idx: 0,
+                hand_idx: HandIndex::H1,
                 action: Action::Place {
                     x: -2,
                     y: -2,
@@ -1085,7 +1084,7 @@ mod tests {
 
         let input2 = ValidInput::new(
             RawInput {
-                hand_idx: 0,
+                hand_idx: HandIndex::H1,
                 action: Action::Pass,
             },
             &game_state.board,
@@ -1134,7 +1133,7 @@ mod tests {
 
         let input1 = ValidInput::new(
             RawInput {
-                hand_idx: 0,
+                hand_idx: HandIndex::H1,
                 action: Action::Place {
                     x: -2,
                     y: -2,
@@ -1150,7 +1149,7 @@ mod tests {
 
         let input2 = ValidInput::new(
             RawInput {
-                hand_idx: 1,
+                hand_idx: HandIndex::H2,
                 action: Action::Place {
                     x: -2,
                     y: -2,
@@ -1216,7 +1215,7 @@ mod tests {
 
         let input1 = ValidInput::new(
             RawInput {
-                hand_idx: 0,
+                hand_idx: HandIndex::H1,
                 action: Action::Place {
                     x: -2,
                     y: -2,
@@ -1232,7 +1231,7 @@ mod tests {
 
         let input2 = ValidInput::new(
             RawInput {
-                hand_idx: 1,
+                hand_idx: HandIndex::H2,
                 action: Action::Place {
                     x: -2,
                     y: -2,
