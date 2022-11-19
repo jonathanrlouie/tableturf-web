@@ -135,46 +135,21 @@ impl<R: DrawRng + Default> Game<R> {
             [Some(true), Some(true)] => {
                 self.game_state.redraw_hand(PlayerNum::P1);
                 self.game_state.redraw_hand(PlayerNum::P2);
-
-                let client_msg = RedrawResponse {
-                    player: self.game_state.player(player_num).clone(),
-                };
-                let opponent_msg = RedrawResponse {
-                    player: self.game_state.player(other_player(player_num)).clone(),
-                };
-                send_messages(client, client_msg, opponent, opponent_msg);
+                send_redraw_responses(&mut self.game_state, player_num, client, opponent);
                 ProtocolState::InGame([None, None])
             }
             [Some(true), Some(false)] => {
                 self.game_state.redraw_hand(PlayerNum::P1);
-                let client_msg = RedrawResponse {
-                    player: self.game_state.player(player_num).clone(),
-                };
-                let opponent_msg = RedrawResponse {
-                    player: self.game_state.player(other_player(player_num)).clone(),
-                };
-                send_messages(client, client_msg, opponent, opponent_msg);
+                send_redraw_responses(&mut self.game_state, player_num, client, opponent);
                 ProtocolState::InGame([None, None])
             }
             [Some(false), Some(true)] => {
                 self.game_state.redraw_hand(PlayerNum::P2);
-                let client_msg = RedrawResponse {
-                    player: self.game_state.player(player_num).clone(),
-                };
-                let opponent_msg = RedrawResponse {
-                    player: self.game_state.player(other_player(player_num)).clone(),
-                };
-                send_messages(client, client_msg, opponent, opponent_msg);
+                send_redraw_responses(&mut self.game_state, player_num, client, opponent);
                 ProtocolState::InGame([None, None])
             }
             [Some(false), Some(false)] => {
-                let client_msg = RedrawResponse {
-                    player: self.game_state.player(player_num).clone(),
-                };
-                let opponent_msg = RedrawResponse {
-                    player: self.game_state.player(other_player(player_num)).clone(),
-                };
-                send_messages(client, client_msg, opponent, opponent_msg);
+                send_redraw_responses(&mut self.game_state, player_num, client, opponent);
                 ProtocolState::InGame([None, None])
             }
             _ => ProtocolState::Redraw(choices),
@@ -271,6 +246,21 @@ impl<R: DrawRng + Default> Game<R> {
             _ => ProtocolState::Rematch(choices),
         }
     }
+}
+
+fn send_redraw_responses<R: DrawRng>(
+    game_state: &mut GameState<R>,
+    player_num: PlayerNum,
+    client: &Client,
+    opponent: &Client,
+) {
+    let client_msg = RedrawResponse {
+        player: game_state.player(player_num).clone(),
+    };
+    let opponent_msg = RedrawResponse {
+        player: game_state.player(other_player(player_num)).clone(),
+    };
+    send_messages(client, client_msg, opponent, opponent_msg);
 }
 
 fn send_outcomes(
