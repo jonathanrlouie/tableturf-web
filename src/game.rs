@@ -83,8 +83,8 @@ impl<R: DrawRng + Default> Game<R> {
         &mut self,
         player_num: PlayerNum,
         msg: &str,
-        client: &mut Client,
-        opponent: &mut Client,
+        client: &Client,
+        opponent: &Client,
     ) {
         use ProtocolState::*;
         self.protocol_state = match self.protocol_state.clone() {
@@ -121,8 +121,8 @@ impl<R: DrawRng + Default> Game<R> {
 
     fn process_redraw_choice(
         &mut self,
-        client: &mut Client,
-        opponent: &mut Client,
+        client: &Client,
+        opponent: &Client,
         choices: [Option<bool>; 2],
         player_num: PlayerNum,
         choice: bool,
@@ -183,8 +183,8 @@ impl<R: DrawRng + Default> Game<R> {
 
     fn process_input(
         &mut self,
-        client: &mut Client,
-        opponent: &mut Client,
+        client: &Client,
+        opponent: &Client,
         inputs: [Option<ValidInput>; 2],
         player_num: PlayerNum,
         input: RawInput,
@@ -207,49 +207,19 @@ impl<R: DrawRng + Default> Game<R> {
                     let winner = self.game_state.check_winner();
                     match (winner, player_num) {
                         (GameOutcome::P1Win, PlayerNum::P1) => {
-                            let client_msg = GameEndResponse {
-                                outcome: Outcome::Win,
-                            };
-                            let opponent_msg = GameEndResponse {
-                                outcome: Outcome::Lose,
-                            };
-                            send_messages(client, client_msg, opponent, opponent_msg);
+                            send_outcomes(client, Outcome::Win, opponent, Outcome::Lose);
                         }
                         (GameOutcome::P2Win, PlayerNum::P1) => {
-                            let client_msg = GameEndResponse {
-                                outcome: Outcome::Lose,
-                            };
-                            let opponent_msg = GameEndResponse {
-                                outcome: Outcome::Win,
-                            };
-                            send_messages(client, client_msg, opponent, opponent_msg);
+                            send_outcomes(client, Outcome::Lose, opponent, Outcome::Win);
                         }
                         (GameOutcome::P1Win, PlayerNum::P2) => {
-                            let client_msg = GameEndResponse {
-                                outcome: Outcome::Lose,
-                            };
-                            let opponent_msg = GameEndResponse {
-                                outcome: Outcome::Win,
-                            };
-                            send_messages(client, client_msg, opponent, opponent_msg);
+                            send_outcomes(client, Outcome::Lose, opponent, Outcome::Win);
                         }
                         (GameOutcome::P2Win, PlayerNum::P2) => {
-                            let client_msg = GameEndResponse {
-                                outcome: Outcome::Win,
-                            };
-                            let opponent_msg = GameEndResponse {
-                                outcome: Outcome::Lose,
-                            };
-                            send_messages(client, client_msg, opponent, opponent_msg);
+                            send_outcomes(client, Outcome::Win, opponent, Outcome::Lose);
                         }
                         (GameOutcome::Draw, _) => {
-                            let client_msg = GameEndResponse {
-                                outcome: Outcome::Draw,
-                            };
-                            let opponent_msg = GameEndResponse {
-                                outcome: Outcome::Draw,
-                            };
-                            send_messages(client, client_msg, opponent, opponent_msg);
+                            send_outcomes(client, Outcome::Draw, opponent, Outcome::Draw);
                         }
                     }
                     ProtocolState::Rematch([None, None])
@@ -272,8 +242,8 @@ impl<R: DrawRng + Default> Game<R> {
 
     fn process_rematch_choice(
         &mut self,
-        client: &mut Client,
-        opponent: &mut Client,
+        client: &Client,
+        opponent: &Client,
         choices: [Option<bool>; 2],
         player_num: PlayerNum,
         choice: bool,
@@ -301,6 +271,21 @@ impl<R: DrawRng + Default> Game<R> {
             _ => ProtocolState::Rematch(choices),
         }
     }
+}
+
+fn send_outcomes(
+    client: &Client,
+    client_outcome: Outcome,
+    opponent: &Client,
+    opponent_outcome: Outcome,
+) {
+    let client_msg = GameEndResponse {
+        outcome: client_outcome,
+    };
+    let opponent_msg = GameEndResponse {
+        outcome: opponent_outcome,
+    };
+    send_messages(client, client_msg, opponent, opponent_msg);
 }
 
 fn other_player(player_num: PlayerNum) -> PlayerNum {
