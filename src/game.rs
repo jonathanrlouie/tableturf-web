@@ -6,8 +6,10 @@ use crate::tableturf::{
 use hashbrown::HashMap;
 use serde::Serialize;
 use serde_json::from_str;
+use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tracing::info;
 use warp::ws::Message;
 
 pub type Games = Arc<RwLock<HashMap<String, Game<DeckRng>>>>;
@@ -45,14 +47,15 @@ enum ProtocolState {
     End,
 }
 
-pub struct Game<R: DrawRng + Default> {
+#[derive(Debug)]
+pub struct Game<R: DrawRng + Default + Debug> {
     game_state: GameState<R>,
     // The first element is Player 1's ID and the second is Player 2's ID
     player_ids: [String; 2],
     protocol_state: ProtocolState,
 }
 
-impl<R: DrawRng + Default> Game<R> {
+impl<R: DrawRng + Default + Debug> Game<R> {
     pub fn new(game_state: GameState<R>, player_ids: [String; 2]) -> Self {
         Game {
             game_state,
@@ -136,20 +139,24 @@ impl<R: DrawRng + Default> Game<R> {
                 self.game_state.redraw_hand(PlayerNum::P1);
                 self.game_state.redraw_hand(PlayerNum::P2);
                 send_redraw_responses(&mut self.game_state, player_num, client, opponent);
+                info!("Game state after redraw: {:?}", self.game_state.board());
                 ProtocolState::InGame([None, None])
             }
             [Some(true), Some(false)] => {
                 self.game_state.redraw_hand(PlayerNum::P1);
                 send_redraw_responses(&mut self.game_state, player_num, client, opponent);
+                //info!("Game state after redraw: {:?}", self.game_state.board());
                 ProtocolState::InGame([None, None])
             }
             [Some(false), Some(true)] => {
                 self.game_state.redraw_hand(PlayerNum::P2);
                 send_redraw_responses(&mut self.game_state, player_num, client, opponent);
+                //info!("Game state after redraw: {:?}", self.game_state.board());
                 ProtocolState::InGame([None, None])
             }
             [Some(false), Some(false)] => {
                 send_redraw_responses(&mut self.game_state, player_num, client, opponent);
+                //info!("Game state after redraw: {:?}", self.game_state.board());
                 ProtocolState::InGame([None, None])
             }
             _ => ProtocolState::Redraw(choices),
@@ -197,6 +204,7 @@ impl<R: DrawRng + Default> Game<R> {
                             send_outcomes(client, Outcome::Draw, opponent, Outcome::Draw);
                         }
                     }
+                    //info!("Game end state: {:?}", self.game_state.board());
                     ProtocolState::Rematch([None, None])
                 } else {
                     let client_msg = StateResponse {
@@ -208,6 +216,7 @@ impl<R: DrawRng + Default> Game<R> {
                         player: self.game_state.player(other_player(player_num)).clone(),
                     };
                     send_messages(client, client_msg, opponent, opponent_msg);
+                    //info!("Game state after update: {:?}", self.game_state.board());
                     ProtocolState::InGame([None, None])
                 }
             }
@@ -248,7 +257,7 @@ impl<R: DrawRng + Default> Game<R> {
     }
 }
 
-fn send_redraw_responses<R: DrawRng>(
+fn send_redraw_responses<R: DrawRng + Debug>(
     game_state: &mut GameState<R>,
     player_num: PlayerNum,
     client: &Client,

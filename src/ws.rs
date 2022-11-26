@@ -6,6 +6,7 @@ use hashbrown::HashMap;
 use serde::Serialize;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
+use tracing::{info, warn};
 use uuid::Uuid;
 use warp::ws::{Message, WebSocket};
 
@@ -52,14 +53,15 @@ pub async fn client_connection(
     println!("{} disconnected", id);
 }
 
+#[tracing::instrument]
 async fn client_msg(id: &str, msg: Message, clients: &Clients, games: &mut Games) {
-    println!("received message from {}: {:?}", id, msg);
+    info!("received message from {}: {:?}", id, msg);
     let message = match msg.to_str() {
-        Ok(v) => v,
+        Ok(v) => v.trim(),
         Err(_) => return,
     };
 
-    if message == "ping" || message == "ping\n" {
+    if message == "ping" {
         return;
     }
 
@@ -82,7 +84,7 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients, games: &mut Games
             let game = match games_map.get_mut(&uuid) {
                 Some(v) => v,
                 None => {
-                    println!("Game with ID {} did not match any existing games", uuid);
+                    warn!("Game with ID {} did not match any existing games", uuid);
                     return;
                 }
             };
@@ -110,6 +112,7 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients, games: &mut Games
         }
         Status::Idle => {
             if message == "join" {
+                info!("client {} joining a game", id);
                 client_join(id, &mut clients_map, games).await;
             }
         }

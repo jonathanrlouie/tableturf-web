@@ -7,7 +7,9 @@ use rand::prelude::IteratorRandom;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use std::cmp::Ordering;
+use std::fmt::Debug;
 
+#[derive(Debug)]
 pub struct DeckRng {
     rng: StdRng,
 }
@@ -36,7 +38,8 @@ pub enum Outcome {
     Draw,
 }
 
-pub struct GameState<R: DrawRng> {
+#[derive(Debug)]
+pub struct GameState<R: DrawRng + Debug> {
     board: Board,
     players: Players,
     turns_left: u32,
@@ -276,7 +279,7 @@ fn default_deck() -> [Card; 15] {
     ]
 }
 
-impl<R: DrawRng + Default> Default for GameState<R> {
+impl<R: DrawRng + Default + Debug> Default for GameState<R> {
     fn default() -> Self {
         //let rng = StdRng::from_rng(rand::thread_rng()).unwrap();
         let mut rng = R::default();
@@ -326,7 +329,7 @@ impl<R: DrawRng + Default> Default for GameState<R> {
     }
 }
 
-impl<R: DrawRng> GameState<R> {
+impl<R: DrawRng + Debug> GameState<R> {
     pub fn new(board: Board, players: [Player; 2], turns_left: u32, rng: R) -> Self {
         GameState {
             board,

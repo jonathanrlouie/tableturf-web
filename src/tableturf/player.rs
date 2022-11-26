@@ -10,6 +10,7 @@ pub enum PlayerNum {
     P2,
 }
 
+#[derive(Debug)]
 pub struct Players([Player; 2]);
 
 impl Index<PlayerNum> for Players {
