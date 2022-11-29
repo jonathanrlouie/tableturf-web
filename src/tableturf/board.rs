@@ -1,5 +1,70 @@
 use crate::tableturf::player::PlayerNum;
 use serde::Serialize;
+use std::fmt;
+use thiserror::Error;
+
+#[derive(Debug)]
+enum Dimension {
+    Width(usize),
+    Height(usize),
+}
+
+impl fmt::Display for Dimension {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Dimension::Width(w) => write!(f, "width {}", w),
+            Dimension::Height(h) => write!(f, "height {}", h),
+        }
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum BoardError {
+    #[error("Board with no rows given")]
+    NoRows,
+    #[error("Board of {dimension} exceeds the maximum of {max}")]
+    TooLarge {
+        dimension: Dimension,
+        max: Dimension,
+    },
+    #[error("Board contains empty rows")]
+    EmptyRows,
+    #[error("Not all board rows have the same length")]
+    MismatchedRowLengths,
+}
+
+#[derive(Debug)]
+enum Coordinate {
+    X,
+    Y,
+}
+
+impl fmt::Display for Coordinate {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Coordinate::X => write!(f, "x"),
+            Coordinate::Y => write!(f, "y"),
+        }
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum BoardPositionError {
+    #[error("{0} coordinate {1} exceeds board {2}")]
+    OutOfBounds(Coordinate, usize, Dimension),
+    #[error("{0} coordinate {1} could not be converted from usize to i32")]
+    CoordinateToInt(Coordinate, usize),
+    #[error("{0} offset {1} could not be converted from usize to i32")]
+    OffsetToInt(Coordinate, usize),
+    #[error("Final {coordinate} coordinate with base {base} and offset {offset} overflowed")]
+    Overflow {
+        coordinate: Coordinate,
+        base: i32,
+        offset: i32,
+    },
+    #[error("{0} coordinate {1} could not be converted from i32 to usize")]
+    CoordinateToUsize(Coordinate, i32),
+}
 
 #[derive(Serialize, Copy, Clone, Debug, PartialEq)]
 pub enum BoardSpace {
@@ -51,20 +116,30 @@ impl BoardPosition {
     // - x coordinate does not exceed Board row length
     // - y coordinate does not exceed Board column height
     // - x and y coordinates can be converted into i32s safely
-    pub fn new(board: &Board, x: usize, y: usize) -> Result<Self, String> {
-        if x >= board.get()[0].len() {
-            return Err("x position exceeds board width".to_string());
+    pub fn new(board: &Board, x: usize, y: usize) -> Result<Self, BoardPositionError> {
+        let width = board.get()[0].len();
+        let height = board.get().len();
+        if x >= width {
+            return Err(BoardPositionError::OutOfBounds(
+                Coordinate::X,
+                x,
+                Dimension::Width(width),
+            ));
         }
-        if y >= board.get().len() {
-            return Err("y position exceeds board height".to_string());
+        if y >= height {
+            return Err(BoardPositionError::OutOfBounds(
+                Coordinate::Y,
+                y,
+                Dimension::Height(height),
+            ));
         }
         // Ensure that x and y can be safely converted into i32s later
         let _: i32 = x
             .try_into()
-            .map_err(|_| "x position could not be converted to i32")?;
+            .map_err(|_| BoardPositionError::CoordinateToInt(Coordinate::X, x))?;
         let _: i32 = y
             .try_into()
-            .map_err(|_| "y position could not be converted to i32")?;
+            .map_err(|_| BoardPositionError::CoordinateToInt(Coordinate::Y, y))?;
         Ok(BoardPosition(x, y))
     }
 
@@ -119,6 +194,7 @@ pub const MAX_BOARD_WIDTH: usize = 26;
 pub const MAX_BOARD_HEIGHT: usize = 26;
 
 // This cannot be an array, because custom boards might be loaded at runtime
+// TODO: Optimise this code by flattening the Vectors
 #[derive(Serialize, Clone, Debug, PartialEq)]
 pub struct Board(Vec<Vec<BoardSpace>>);
 
@@ -129,29 +205,29 @@ impl Board {
     // - column height does not exceed the max board height
     // - board contains at least one row
     // - rows contain at least one space
-    pub fn new(spaces: Vec<Vec<BoardSpace>>) -> Result<Self, String> {
+    pub fn new(spaces: Vec<Vec<BoardSpace>>) -> Result<Self, BoardError> {
         if spaces.is_empty() {
-            return Err("Board with no rows given".to_string());
+            return Err(BoardError::NoRows);
         }
         if spaces.len() > MAX_BOARD_HEIGHT {
-            return Err(format!(
-                "Board height exceeds the maximum height of {} spaces",
-                MAX_BOARD_HEIGHT
-            ));
+            return Err(BoardError::TooLarge {
+                dimension: Dimension::Height(spaces.len()),
+                max: Dimension::Height(MAX_BOARD_HEIGHT),
+            });
         }
-        let row = spaces.get(0).ok_or("Board contains no rows")?;
+        let row = spaces.get(0).unwrap();
         if row.is_empty() {
-            return Err("Board contains empty rows".to_string());
+            return Err(BoardError::EmptyRows);
         }
         let row_len = row.len();
         if row_len > MAX_BOARD_WIDTH {
-            return Err(format!(
-                "Board width exceeds the maximum width of {} spaces",
-                MAX_BOARD_WIDTH
-            ));
+            return Err(BoardError::TooLarge {
+                dimension: Dimension::Width(row_len),
+                max: Dimension::Width(MAX_BOARD_WIDTH),
+            });
         }
         if spaces.iter().any(|row| row.len() != row_len) {
-            return Err("Not all board rows have the same length".to_string());
+            return Err(BoardError::MismatchedRowLengths);
         }
         Ok(Board(spaces))
     }
@@ -212,29 +288,39 @@ impl Board {
         })
     }
 
+    // Calculate the absolute board position for a given base position and offsets
     pub fn get_absolute_position(
         &self,
+        // The number of spaces to the right of the board_x base position
         x_offset: usize,
+        // The number of spaces down from the board_y base position
         y_offset: usize,
         board_x: i32,
         board_y: i32,
-    ) -> Result<BoardPosition, String> {
+    ) -> Result<BoardPosition, BoardPositionError> {
+        // The conversion errors don't provide any useful info, so we can discard them
         let x_offset: i32 = x_offset
             .try_into()
-            .map_err(|_| "x offset could not be converted to i32".to_string())?;
+            .map_err(|_| BoardPositionError::OffsetToInt(Coordinate::X, x_offset))?;
         let y_offset: i32 = y_offset
             .try_into()
-            .map_err(|_| "y offset could not be converted to i32".to_string())?;
-        let x =
-            i32::checked_add(board_x, x_offset).ok_or("absolute x position outside of board")?;
-        let y =
-            i32::checked_add(board_y, y_offset).ok_or("absolute y position outside of board")?;
+            .map_err(|_| BoardPositionError::OffsetToInt(Coordinate::Y, y_offset))?;
+        let x = i32::checked_add(board_x, x_offset).ok_or(BoardPositionError::Overflow {
+            coordinate: Coordinate::X,
+            base: board_x,
+            offset: x_offset,
+        })?;
+        let y = i32::checked_add(board_y, y_offset).ok_or(BoardPositionError::Overflow {
+            coordinate: Coordinate::Y,
+            base: board_y,
+            offset: y_offset,
+        })?;
         let x: usize = x
             .try_into()
-            .map_err(|_| "absolute x position could not be converted to a usize")?;
+            .map_err(|_| BoardPositionError::CoordinateToUsize(Coordinate::X, x))?;
         let y: usize = y
             .try_into()
-            .map_err(|_| "absolute y position could not be converted to a usize")?;
+            .map_err(|_| BoardPositionError::CoordinateToUsize(Coordinate::Y, y))?;
         BoardPosition::new(self, x, y)
     }
 }

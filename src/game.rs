@@ -15,14 +15,14 @@ use warp::ws::Message;
 pub type Games = Arc<RwLock<HashMap<String, Game<DeckRng>>>>;
 
 #[derive(Serialize, Debug)]
-pub struct RedrawResponse {
-    pub player: Player,
+struct RedrawResponse {
+    player: Player,
 }
 
 #[derive(Serialize, Debug)]
-struct StateResponse {
-    board: Board,
-    player: Player,
+pub struct StateResponse {
+    pub board: Board,
+    pub player: Player,
 }
 
 #[derive(Serialize, Debug)]

@@ -1,8 +1,19 @@
-use crate::tableturf::board::{Board, BoardPosition, BoardSpace};
+use crate::tableturf::board::{Board, BoardPosition, BoardPositionError, BoardSpace};
 use crate::tableturf::card::{Card, Grid, InkSpace, ROW_LEN};
 use crate::tableturf::deck::HandIndex;
 use crate::tableturf::player::{Player, PlayerNum};
 use serde::Deserialize;
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum InputError {
+    #[error("Insufficient special. Current special: {special}. Required: {required}")]
+    InsufficientSpecial {
+        special: u32,
+        required: u32,
+    },
+    InvalidPosition(BoardPositionError),
+}
 
 // Represents the number of counter-clockwise rotations applied to a Card
 #[derive(Deserialize, Copy, Clone, Debug)]
@@ -59,11 +70,11 @@ impl Placement {
         board: &Board,
         player: &Player,
         player_num: PlayerNum,
-    ) -> Result<Placement, String> {
+    ) -> Result<Placement, InputError> {
         let (board_x, board_y) = board_position;
         let selected_card = player.get_card(hand_idx);
         let grid = rotate_input(&selected_card, rotation);
-        let ink_spaces = grid
+        let result = grid
             .iter()
             .enumerate()
             .flat_map(|(y, row)| {
@@ -76,13 +87,17 @@ impl Placement {
                     .get_absolute_position(x, y, board_x, board_y)
                     .map(|bp| (bp, s))
             })
-            .collect::<Result<Vec<(BoardPosition, InkSpace)>, String>>()?;
+            .collect::<Result<Vec<(BoardPosition, InkSpace)>, BoardPositionError>>();
+        let ink_spaces = result.map_err(|e| InputError::InvalidPosition(e))?;
 
         if special_activated {
             // Check that player has enough special and that the special isn't
             // overlapping any walls or special spaces.
             if player.special < selected_card.special() {
-                return Err("player has insufficient special".to_string());
+                return Err(InputError::InsufficientSpecial(
+                    player.special,
+                    selected_card.special(),
+                ));
             }
 
             if special_collision(&ink_spaces[..], board) {
@@ -136,7 +151,7 @@ impl ValidInput {
         board: &Board,
         player: &Player,
         player_num: PlayerNum,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, InputError> {
         let hand_idx = input.hand_idx;
         match input.action {
             Action::Pass => Ok(Self {

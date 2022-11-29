@@ -1,5 +1,5 @@
 use crate::client::{Client, Clients, Status};
-use crate::game::{Game, Games, RedrawResponse};
+use crate::game::{Game, Games, StateResponse};
 use crate::tableturf::{Board, GameState, Player, PlayerNum};
 use futures::{FutureExt, StreamExt};
 use hashbrown::HashMap;
@@ -9,12 +9,6 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use tracing::{info, warn};
 use uuid::Uuid;
 use warp::ws::{Message, WebSocket};
-
-#[derive(Serialize, Debug)]
-pub struct GameStateResponse {
-    player: Player,
-    board: Board,
-}
 
 pub async fn client_connection(
     ws: WebSocket,
@@ -135,14 +129,22 @@ async fn client_join(id: &str, clients: &mut HashMap<String, Client>, games: &mu
         if let Some(sender) = &client.sender {
             sender
                 .send(Ok(Message::text(
-                    serde_json::to_string(&RedrawResponse { player: player1 }).unwrap(),
+                    serde_json::to_string(&StateResponse {
+                        board: game_state.board().clone(),
+                        player: player1,
+                    })
+                    .unwrap(),
                 )))
                 .unwrap();
         }
         if let Some(sender) = &opponent.sender {
             sender
                 .send(Ok(Message::text(
-                    serde_json::to_string(&RedrawResponse { player: player2 }).unwrap(),
+                    serde_json::to_string(&StateResponse {
+                        board: game_state.board().clone(),
+                        player: player2,
+                    })
+                    .unwrap(),
                 )))
                 .unwrap();
         }
