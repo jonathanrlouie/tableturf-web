@@ -519,10 +519,13 @@ mod tests {
     use super::*;
     use crate::tableturf::board::{Board, BoardPosition};
     use crate::tableturf::deck::{Deck, DeckIndex, Hand, HandIndex};
-    use crate::tableturf::input::{Action, Placement, RawInput, Rotation};
+    use crate::tableturf::input::{Action, RawPlacement, Placement, RawInput, Rotation};
 
+    #[derive(Debug)]
     struct MockRng1;
+    #[derive(Debug)]
     struct MockRng2;
+    #[derive(Debug)]
     struct MockRng3;
 
     impl DrawRng for MockRng1 {
@@ -717,13 +720,17 @@ mod tests {
 
         let mut game_state = GameState::new(board, [player1, player2], 12, MockRng1);
 
+        let raw_placement = RawPlacement {
+            x: -2,
+            y: -2,
+            special_activated: false,
+            rotation: Rotation::Zero
+        };
         let hand_idx = HandIndex::H1;
         game_state.place(
             hand_idx,
             Placement::new(
-                (-2, -2),
-                false,
-                Rotation::Zero,
+                raw_placement,
                 hand_idx,
                 &game_state.board,
                 &game_state.players[PlayerNum::P1],
@@ -764,14 +771,24 @@ mod tests {
 
         let mut game_state1 = game_state1();
 
+        let raw_placement1 = RawPlacement {
+            x: -2,
+            y: -2,
+            special_activated: false,
+            rotation: Rotation::Zero
+        };
+        let raw_placement2 = RawPlacement {
+            x: -2,
+            y: -2,
+            special_activated: false,
+            rotation: Rotation::Zero
+        };
         let hand_idx = HandIndex::H1;
         game_state1.place_both(
             hand_idx,
             hand_idx,
             Placement::new(
-                (-2, -2),
-                false,
-                Rotation::Zero,
+                raw_placement1,
                 hand_idx,
                 &game_state1.board,
                 &game_state1.players[PlayerNum::P1],
@@ -779,9 +796,7 @@ mod tests {
             )
             .unwrap(),
             Placement::new(
-                (-2, -2),
-                false,
-                Rotation::Zero,
+                raw_placement2,
                 hand_idx,
                 &game_state1.board,
                 &game_state1.players[PlayerNum::P2],
@@ -802,14 +817,24 @@ mod tests {
         let mut game_state_offset = game_state_offset();
         let board_offset = &game_state_offset.board;
 
+        let raw_placement1 = RawPlacement {
+            x: -2,
+            y: -2,
+            special_activated: false,
+            rotation: Rotation::Zero
+        };
+        let raw_placement2 = RawPlacement {
+            x: -1,
+            y: -2,
+            special_activated: false,
+            rotation: Rotation::Zero
+        };
         let hand_idx = HandIndex::H1;
         game_state_offset.place_both(
             hand_idx,
             hand_idx,
             Placement::new(
-                (-2, -2),
-                false,
-                Rotation::Zero,
+                raw_placement1,
                 hand_idx,
                 board_offset,
                 &game_state_offset.players[PlayerNum::P1],
@@ -817,9 +842,7 @@ mod tests {
             )
             .unwrap(),
             Placement::new(
-                (-1, -2),
-                false,
-                Rotation::Zero,
+                raw_placement2,
                 hand_idx,
                 board_offset,
                 &game_state_offset.players[PlayerNum::P2],
@@ -838,14 +861,25 @@ mod tests {
         assert_eq!(game_state_offset.board, expected_board_offset);
 
         let mut game_state2 = game_state2();
+
+        let raw_placement1 = RawPlacement {
+            x: -2,
+            y: -2,
+            special_activated: false,
+            rotation: Rotation::Zero
+        };
+        let raw_placement2 = RawPlacement {
+            x: -2,
+            y: -3,
+            special_activated: false,
+            rotation: Rotation::Zero
+        };
         let hand_idx = HandIndex::H1;
         game_state2.place_both(
             hand_idx,
             hand_idx,
             Placement::new(
-                (-2, -2),
-                false,
-                Rotation::Zero,
+                raw_placement1,
                 hand_idx,
                 &game_state2.board,
                 &game_state2.players[PlayerNum::P1],
@@ -853,9 +887,7 @@ mod tests {
             )
             .unwrap(),
             Placement::new(
-                (-2, -3),
-                false,
-                Rotation::Zero,
+                raw_placement2,
                 hand_idx,
                 &game_state2.board,
                 &game_state2.players[PlayerNum::P2],
@@ -1072,12 +1104,12 @@ mod tests {
         let input1 = ValidInput::new(
             RawInput {
                 hand_idx: HandIndex::H1,
-                action: Action::Place {
+                action: Action::Place(RawPlacement {
                     x: -2,
                     y: -2,
                     special_activated: false,
                     rotation: Rotation::Zero,
-                },
+                }),
             },
             &game_state.board,
             &game_state.players[PlayerNum::P1],
@@ -1137,12 +1169,12 @@ mod tests {
         let input1 = ValidInput::new(
             RawInput {
                 hand_idx: HandIndex::H1,
-                action: Action::Place {
+                action: Action::Place(RawPlacement {
                     x: -2,
                     y: -2,
                     special_activated: false,
                     rotation: Rotation::Zero,
-                },
+                }),
             },
             &game_state.board,
             &game_state.players[PlayerNum::P1],
@@ -1153,12 +1185,12 @@ mod tests {
         let input2 = ValidInput::new(
             RawInput {
                 hand_idx: HandIndex::H2,
-                action: Action::Place {
+                action: Action::Place(RawPlacement {
                     x: -2,
                     y: -2,
                     special_activated: false,
                     rotation: Rotation::Zero,
-                },
+                }),
             },
             &game_state.board,
             &game_state.players[PlayerNum::P2],
@@ -1219,12 +1251,12 @@ mod tests {
         let input1 = ValidInput::new(
             RawInput {
                 hand_idx: HandIndex::H1,
-                action: Action::Place {
+                action: Action::Place(RawPlacement {
                     x: -2,
                     y: -2,
                     special_activated: true,
                     rotation: Rotation::Zero,
-                },
+                }),
             },
             &game_state.board,
             &game_state.players[PlayerNum::P1],
@@ -1235,12 +1267,12 @@ mod tests {
         let input2 = ValidInput::new(
             RawInput {
                 hand_idx: HandIndex::H2,
-                action: Action::Place {
+                action: Action::Place(RawPlacement {
                     x: -2,
                     y: -2,
                     special_activated: true,
                     rotation: Rotation::Zero,
-                },
+                }),
             },
             &game_state.board,
             &game_state.players[PlayerNum::P2],

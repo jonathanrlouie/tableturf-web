@@ -4,7 +4,7 @@ use std::fmt;
 use thiserror::Error;
 
 #[derive(Debug)]
-enum Dimension {
+pub enum Dimension {
     Width(usize),
     Height(usize),
 }
@@ -34,7 +34,7 @@ pub enum BoardError {
 }
 
 #[derive(Debug)]
-enum Coordinate {
+pub enum Coordinate {
     X,
     Y,
 }

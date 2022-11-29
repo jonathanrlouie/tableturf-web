@@ -8,11 +8,17 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum InputError {
     #[error("Insufficient special. Current special: {special}. Required: {required}")]
-    InsufficientSpecial {
-        special: u32,
-        required: u32,
-    },
+    InsufficientSpecial { special: u32, required: u32 },
+    #[error("invalid placement position: {0}")]
     InvalidPosition(BoardPositionError),
+    #[error("special placement is overlapping walls or special spaces")]
+    SpecialCollision,
+    #[error("special placement not adjacent to a special square")]
+    SpecialNotAdjacentToSpecialSquare,
+    #[error("ink placement not over empty tiles")]
+    InkCollision,
+    #[error("ink placement not adjacent to player's ink")]
+    InkNotAdjacentToInk,
 }
 
 // Represents the number of counter-clockwise rotations applied to a Card
@@ -27,13 +33,16 @@ pub enum Rotation {
 #[derive(Deserialize, Debug)]
 pub enum Action {
     Pass,
-    Place {
-        // The x and y coordinates of the top-left corner of the card's grid
-        x: i32,
-        y: i32,
-        special_activated: bool,
-        rotation: Rotation,
-    },
+    Place(RawPlacement),
+}
+
+#[derive(Deserialize, Debug)]
+pub struct RawPlacement {
+    // The x and y coordinates of the top-left corner of the card's grid
+    pub x: i32,
+    pub y: i32,
+    pub special_activated: bool,
+    pub rotation: Rotation,
 }
 
 #[derive(Deserialize, Debug)]
@@ -63,15 +72,18 @@ pub struct Placement {
 
 impl Placement {
     pub fn new(
-        board_position: (i32, i32),
-        special_activated: bool,
-        rotation: Rotation,
+        raw_placement: RawPlacement,
         hand_idx: HandIndex,
         board: &Board,
         player: &Player,
         player_num: PlayerNum,
     ) -> Result<Placement, InputError> {
-        let (board_x, board_y) = board_position;
+        let RawPlacement {
+            x: board_x,
+            y: board_y,
+            special_activated,
+            rotation
+        } = raw_placement;
         let selected_card = player.get_card(hand_idx);
         let grid = rotate_input(&selected_card, rotation);
         let result = grid
@@ -94,29 +106,29 @@ impl Placement {
             // Check that player has enough special and that the special isn't
             // overlapping any walls or special spaces.
             if player.special < selected_card.special() {
-                return Err(InputError::InsufficientSpecial(
-                    player.special,
-                    selected_card.special(),
-                ));
+                return Err(InputError::InsufficientSpecial {
+                    special: player.special,
+                    required: selected_card.special(),
+                });
             }
 
             if special_collision(&ink_spaces[..], board) {
-                return Err("special placement is overlapping walls or special spaces".to_string());
+                return Err(InputError::SpecialCollision);
             }
 
             // Check that ink placement is adjacent to one of the player's special spaces
             if !placement_adjacent_to_special(&ink_spaces[..], board, player_num) {
-                return Err("special placement not adjacent to a special square".to_string());
+                return Err(InputError::SpecialNotAdjacentToSpecialSquare);
             }
         // Check that ink placement is over empty squares
         } else {
             if placement_collision(&ink_spaces[..], board) {
-                return Err("ink placement not over empty tiles".to_string());
+                return Err(InputError::InkCollision);
             }
 
             // Check that ink placement is adjacent to player's ink
             if !placement_adjacent_to_ink(&ink_spaces[..], board, player_num) {
-                return Err("ink placement not adjacent to player's ink".to_string());
+                return Err(InputError::InkNotAdjacentToInk);
             }
         }
         Ok(Placement {
@@ -158,16 +170,9 @@ impl ValidInput {
                 hand_idx,
                 input: Input::Pass,
             }),
-            Action::Place {
-                x: board_x,
-                y: board_y,
-                special_activated,
-                rotation,
-            } => {
+            Action::Place(raw_placement) => {
                 let placement = Placement::new(
-                    (board_x, board_y),
-                    special_activated,
-                    rotation,
+                    raw_placement,
                     hand_idx,
                     board,
                     player,
@@ -648,10 +653,14 @@ mod tests {
         let (deck, hand) = draw_hand2();
         let special = 5;
         let player = Player::new(hand, deck, special);
+        let raw_placement = RawPlacement {
+            x: -3,
+            y: -3,
+            special_activated: false,
+            rotation: Rotation::Two
+        };
         let placement = Placement::new(
-            (-3, -3),
-            false,
-            Rotation::Two,
+            raw_placement,
             HandIndex::H1,
             &board,
             &player,
@@ -680,10 +689,14 @@ mod tests {
             vec![empty, empty, empty],
         ])
         .unwrap();
+        let raw_placement = RawPlacement {
+            x: -3,
+            y: -3,
+            special_activated: false,
+            rotation: Rotation::Two
+        };
         let placement = Placement::new(
-            (-3, -3),
-            false,
-            Rotation::Two,
+            raw_placement,
             HandIndex::H1,
             &board,
             &player,
@@ -698,10 +711,14 @@ mod tests {
             vec![empty, empty, empty],
         ])
         .unwrap();
+        let raw_placement = RawPlacement {
+            x: -3,
+            y: -3,
+            special_activated: true,
+            rotation: Rotation::Two
+        };
         let placement = Placement::new(
-            (-3, -3),
-            true,
-            Rotation::Two,
+            raw_placement,
             HandIndex::H1,
             &board,
             &player,
@@ -718,10 +735,14 @@ mod tests {
             vec![empty, empty, empty],
         ])
         .unwrap();
+        let raw_placement = RawPlacement {
+            x: -3,
+            y: -3,
+            special_activated: true,
+            rotation: Rotation::Two
+        };
         let placement = Placement::new(
-            (-3, -3),
-            true,
-            Rotation::Two,
+            raw_placement,
             HandIndex::H1,
             &board,
             &player_no_special,
@@ -736,10 +757,14 @@ mod tests {
             vec![empty, empty, empty],
         ])
         .unwrap();
+        let raw_placement = RawPlacement {
+            x: -3,
+            y: -3,
+            special_activated: true,
+            rotation: Rotation::Two
+        };
         let placement = Placement::new(
-            (-3, -3),
-            true,
-            Rotation::Two,
+            raw_placement,
             HandIndex::H1,
             &board,
             &player,
@@ -754,10 +779,14 @@ mod tests {
             vec![empty, empty, empty],
         ])
         .unwrap();
+        let raw_placement = RawPlacement {
+            x: -3,
+            y: -3,
+            special_activated: false,
+            rotation: Rotation::Two
+        };
         let placement = Placement::new(
-            (-3, -3),
-            false,
-            Rotation::Two,
+            raw_placement,
             HandIndex::H1,
             &board,
             &player,
@@ -772,10 +801,14 @@ mod tests {
             vec![empty, empty, empty],
         ])
         .unwrap();
+        let raw_placement = RawPlacement {
+            x: -3,
+            y: -3,
+            special_activated: true,
+            rotation: Rotation::Two
+        };
         let placement = Placement::new(
-            (-3, -3),
-            true,
-            Rotation::Two,
+            raw_placement,
             HandIndex::H1,
             &board,
             &player,
@@ -790,10 +823,14 @@ mod tests {
             vec![empty, empty, empty],
         ])
         .unwrap();
+        let raw_placement = RawPlacement {
+            x: -3,
+            y: -3,
+            special_activated: false,
+            rotation: Rotation::Two
+        };
         let placement = Placement::new(
-            (-3, -3),
-            false,
-            Rotation::Two,
+            raw_placement,
             HandIndex::H1,
             &board,
             &player,
@@ -1036,12 +1073,12 @@ mod tests {
         let input = ValidInput::new(
             RawInput {
                 hand_idx: HandIndex::H3,
-                action: Action::Place {
+                action: Action::Place(RawPlacement {
                     x: -8,
                     y: -8,
                     special_activated: false,
                     rotation: Rotation::Zero,
-                },
+                }),
             },
             &board,
             &player,
@@ -1053,12 +1090,12 @@ mod tests {
         let input = ValidInput::new(
             RawInput {
                 hand_idx: HandIndex::H3,
-                action: Action::Place {
+                action: Action::Place(RawPlacement {
                     x: -7,
                     y: -7,
                     special_activated: false,
                     rotation: Rotation::Zero,
-                },
+                }),
             },
             &board,
             &player,
@@ -1070,12 +1107,12 @@ mod tests {
         let input = ValidInput::new(
             RawInput {
                 hand_idx: HandIndex::H2,
-                action: Action::Place {
+                action: Action::Place(RawPlacement {
                     x: 2,
                     y: 2,
                     special_activated: false,
                     rotation: Rotation::Zero,
-                },
+                }),
             },
             &board,
             &player,
@@ -1087,12 +1124,12 @@ mod tests {
         let input = ValidInput::new(
             RawInput {
                 hand_idx: HandIndex::H2,
-                action: Action::Place {
+                action: Action::Place(RawPlacement {
                     x: 3,
                     y: 2,
                     special_activated: false,
                     rotation: Rotation::Zero,
-                },
+                }),
             },
             &board,
             &player,
