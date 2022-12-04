@@ -1,6 +1,6 @@
 use crate::tableturf::board::{Board, BoardPosition, BoardSpace};
 use crate::tableturf::card::{Card, CardSpace, InkSpace};
-use crate::tableturf::deck::{Deck, DeckIndex, DrawRng, HandIndex};
+use crate::tableturf::deck::{Hand, Deck, DeckIndex, DrawRng, HandIndex};
 use crate::tableturf::input::{Input, Placement, ValidInput};
 use crate::tableturf::player::{Player, PlayerNum, Players};
 use rand::prelude::IteratorRandom;
@@ -26,8 +26,9 @@ impl DrawRng for DeckRng {
         iter.choose(&mut self.rng)
     }
 
-    fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Vec<DeckIndex> {
-        iter.choose_multiple(&mut self.rng, 4)
+    fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Hand {
+        let cards = iter.choose_multiple(&mut self.rng, 4);
+        Hand::new([cards[0], cards[1], cards[2], cards[3]]).unwrap()
     }
 }
 
@@ -321,8 +322,8 @@ impl<R: DrawRng + Default + Debug> Default for GameState<R> {
             vec![ee, ee, ee, ee, ee, ee, ee, ee, ee],
         ])
         .unwrap();
-        let (deck1, hand1) = Deck::draw_hand(default_deck(), &mut rng).unwrap();
-        let (deck2, hand2) = Deck::draw_hand(default_deck(), &mut rng).unwrap();
+        let (deck1, hand1) = Deck::draw_hand(default_deck(), &mut rng);
+        let (deck2, hand2) = Deck::draw_hand(default_deck(), &mut rng);
 
         let players = [Player::new(hand1, deck1, 0), Player::new(hand2, deck2, 0)];
         GameState::new(board, players, 12, rng)
@@ -533,9 +534,9 @@ mod tests {
             iter.next()
         }
 
-        fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Vec<DeckIndex> {
+        fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Hand {
             let v: Vec<DeckIndex> = iter.collect();
-            vec![v[0], v[1], v[2], v[3]]
+            Hand::new([v[0], v[1], v[2], v[3]]).unwrap()
         }
     }
 
@@ -544,9 +545,9 @@ mod tests {
             iter.next()
         }
 
-        fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Vec<DeckIndex> {
+        fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Hand {
             let v: Vec<DeckIndex> = iter.collect();
-            vec![v[11], v[12], v[13], v[14]]
+            Hand::new([v[11], v[12], v[13], v[14]]).unwrap()
         }
     }
 
@@ -555,9 +556,9 @@ mod tests {
             iter.next()
         }
 
-        fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Vec<DeckIndex> {
+        fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Hand {
             let v: Vec<DeckIndex> = iter.collect();
-            vec![v[13], v[1], v[2], v[3]]
+            Hand::new([v[13], v[1], v[2], v[3]]).unwrap()
         }
     }
 
@@ -566,11 +567,11 @@ mod tests {
     }
 
     fn draw_hand1() -> (Deck, Hand) {
-        Deck::draw_hand(default_deck(), &mut MockRng1).unwrap()
+        Deck::draw_hand(default_deck(), &mut MockRng1)
     }
 
     fn draw_hand2() -> (Deck, Hand) {
-        Deck::draw_hand(default_deck(), &mut MockRng2).unwrap()
+        Deck::draw_hand(default_deck(), &mut MockRng2)
     }
 
     fn game_state1() -> GameState<MockRng1> {
@@ -617,7 +618,7 @@ mod tests {
         let (deck1, hand1) = draw_hand1();
         let player1 = Player::new(hand1, deck1, 0);
 
-        let (deck2, hand2) = Deck::draw_hand(default_deck(), &mut MockRng3).unwrap();
+        let (deck2, hand2) = Deck::draw_hand(default_deck(), &mut MockRng3);
         let player2 = Player::new(hand2, deck2, 0);
 
         GameState::new(board, [player1, player2], 12, MockRng2)

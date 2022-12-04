@@ -67,7 +67,7 @@ impl Player {
     }
 
     pub fn redraw_hand<R: DrawRng>(&mut self, rng: &mut R) {
-        let (deck, hand) = Deck::draw_hand(self.deck.cards(), rng).unwrap();
+        let (deck, hand) = Deck::draw_hand(self.deck.cards(), rng);
         self.hand = hand;
         self.deck = deck;
     }
@@ -100,9 +100,9 @@ mod tests {
             iter.next()
         }
 
-        fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Vec<DeckIndex> {
+        fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Hand {
             let v: Vec<DeckIndex> = iter.collect();
-            vec![v[0], v[1], v[2], v[3]]
+            Hand::new([v[0], v[1], v[2], v[3]]).unwrap()
         }
     }
 
@@ -126,8 +126,7 @@ mod tests {
                 card,
             ],
             &mut MockRng,
-        )
-        .unwrap();
+        );
         let mut player = Player::new(hand, deck, 0);
         player.replace_card(HandIndex::H1, &mut MockRng);
         let deck_idx = player.hand[HandIndex::H1];

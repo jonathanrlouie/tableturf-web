@@ -3,8 +3,15 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::ops::{Index, IndexMut};
+use thiserror::Error;
 
 pub const HAND_SIZE: usize = 4;
+
+#[derive(Error, Debug)]
+pub enum HandError {
+    #[error("Failed to create a new Hand since duplicate Deck indices were given. Given indices: {0:?}")]
+    DuplicateCards([DeckIndex; HAND_SIZE])
+}
 
 #[derive(Deserialize, Copy, Clone, Debug)]
 pub enum HandIndex {
@@ -41,8 +48,12 @@ impl IndexMut<HandIndex> for Hand {
 }
 
 impl Hand {
-    fn new(hand: [DeckIndex; HAND_SIZE]) -> Self {
-        Hand(hand)
+    pub fn new(hand: [DeckIndex; HAND_SIZE]) -> Result<Self, HandError> {
+        let deduped: HashSet<DeckIndex> = HashSet::from_iter(hand.clone().into_iter());
+        if deduped.len() != HAND_SIZE {
+            return Err(HandError::DuplicateCards(hand.clone()));
+        }
+        Ok(Hand(hand))
     }
 }
 
@@ -50,7 +61,7 @@ pub const DECK_SIZE: usize = 15;
 
 pub trait DrawRng {
     fn draw<T, I: Iterator<Item = T> + Sized>(&mut self, iter: I) -> Option<T>;
-    fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Vec<DeckIndex>;
+    fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Hand;
 }
 
 #[derive(Serialize, Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -126,28 +137,24 @@ impl Deck {
     pub fn draw_hand<R: DrawRng>(
         cards: [Card; DECK_SIZE],
         rng: &mut R,
-    ) -> Result<(Self, Hand), String> {
+    ) -> (Self, Hand) {
         use DeckIndex::*;
         let indices = vec![
             D1, D2, D3, D4, D5, D6, D7, D8, D9, D10, D11, D12, D13, D14, D15,
         ];
         let hand = rng.draw_hand(indices.into_iter());
-        let deduped: HashSet<DeckIndex> = HashSet::from_iter(hand.clone().into_iter());
-        if deduped.len() != 4 {
-            return Err("Drawn hand did not contain 4 cards".to_string());
-        }
         let mut card_states = [
             true, true, true, true, true, true, true, true, true, true, true, true, true, true,
             true,
         ];
-        card_states[idx_to_usize(hand[0])] = false;
-        card_states[idx_to_usize(hand[1])] = false;
-        card_states[idx_to_usize(hand[2])] = false;
-        card_states[idx_to_usize(hand[3])] = false;
-        Ok((
+        card_states[idx_to_usize(hand.0[0])] = false;
+        card_states[idx_to_usize(hand.0[1])] = false;
+        card_states[idx_to_usize(hand.0[2])] = false;
+        card_states[idx_to_usize(hand.0[3])] = false;
+        (
             Deck { cards, card_states },
-            Hand::new([hand[0], hand[1], hand[2], hand[3]]),
-        ))
+            hand,
+        )
     }
 
     pub fn index(&self, index: DeckIndex) -> (&Card, &bool) {
@@ -193,9 +200,9 @@ mod tests {
             iter.next()
         }
 
-        fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Vec<DeckIndex> {
+        fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Hand {
             let v: Vec<DeckIndex> = iter.collect();
-            vec![v[0], v[1], v[2], v[3]]
+            Hand::new([v[0], v[1], v[2], v[3]]).unwrap()
         }
     }
 
@@ -220,7 +227,6 @@ mod tests {
             ],
             &mut MockRng,
         )
-        .unwrap()
         .0;
         let idx = deck.draw_card(&mut MockRng);
         assert!(idx.is_some());

@@ -1,9 +1,8 @@
 use crate::client::{Client, Clients, Status};
 use crate::game::{Game, Games, StateResponse};
-use crate::tableturf::{Board, GameState, Player, PlayerNum};
+use crate::tableturf::{GameState, PlayerNum};
 use futures::{FutureExt, StreamExt};
 use hashbrown::HashMap;
-use serde::Serialize;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tracing::{info, warn};

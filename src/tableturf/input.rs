@@ -295,9 +295,9 @@ mod tests {
             iter.next()
         }
 
-        fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Vec<DeckIndex> {
+        fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Hand {
             let v: Vec<DeckIndex> = iter.collect();
-            vec![v[13], v[1], v[2], v[3]]
+            Hand::new([v[13], v[1], v[2], v[3]]).unwrap()
         }
     }
 
@@ -306,9 +306,9 @@ mod tests {
             iter.next()
         }
 
-        fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Vec<DeckIndex> {
+        fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Hand {
             let v: Vec<DeckIndex> = iter.collect();
-            vec![v[13], v[1], v[2], v[3]]
+            Hand::new([v[13], v[1], v[2], v[3]]).unwrap()
         }
     }
 
@@ -626,11 +626,11 @@ mod tests {
     }
 
     fn draw_hand() -> (Deck, Hand) {
-        Deck::draw_hand(custom_deck(), &mut MockRng).unwrap()
+        Deck::draw_hand(custom_deck(), &mut MockRng)
     }
 
     fn draw_hand2() -> (Deck, Hand) {
-        Deck::draw_hand(custom_deck(), &mut MockRng2).unwrap()
+        Deck::draw_hand(custom_deck(), &mut MockRng2)
     }
 
     #[test]
