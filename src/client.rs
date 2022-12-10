@@ -3,6 +3,11 @@ use hashbrown::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 use warp::ws::Message;
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+#[error("Error sending message")]
+pub struct SendError;
 
 pub type Clients = Arc<RwLock<HashMap<String, Client>>>;
 
@@ -14,8 +19,22 @@ pub enum Status {
 }
 
 #[derive(Debug, Clone)]
+pub struct Sender(pub mpsc::UnboundedSender<Result<Message, warp::Error>>);
+
+#[derive(Debug, Clone)]
 pub struct Client {
     pub user_id: usize,
     pub status: Status,
-    pub sender: Option<mpsc::UnboundedSender<std::result::Result<Message, warp::Error>>>,
+    pub sender: Option<Sender>,
 }
+
+pub trait SendMsg {
+    fn send(&self, msg: &str) -> Result<(), SendError>;
+}
+
+impl SendMsg for Sender {
+    fn send(&self, msg: &str) -> Result<(), SendError> {
+        self.0.send(Ok(Message::text(msg))).map_err(|_| SendError)
+    }
+}
+

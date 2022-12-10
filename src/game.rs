@@ -1,16 +1,15 @@
-use crate::client::Client;
+use crate::client::SendMsg;
+use crate::util;
 use crate::tableturf::{
     Board, DeckRng, DrawRng, GameState, Outcome as GameOutcome, Player, PlayerNum, RawInput,
-    ValidInput,
+    ValidInput, InputError,
 };
 use hashbrown::HashMap;
-use serde::Serialize;
-use serde_json::from_str;
+use serde::Serialize; use serde_json::from_str;
 use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::info;
-use warp::ws::Message;
+use tracing::{warn, info};
 
 pub type Games = Arc<RwLock<HashMap<String, Game<DeckRng>>>>;
 
@@ -82,50 +81,77 @@ impl<R: DrawRng + Default + Debug> Game<R> {
         }
     }
 
-    pub fn handle_message(
+    pub fn handle_message<S: SendMsg>(
         &mut self,
         player_num: PlayerNum,
         msg: &str,
-        client: &Client,
-        opponent: &Client,
+        client: &S,
+        opponent: &S,
     ) {
         use ProtocolState::*;
         self.protocol_state = match self.protocol_state.clone() {
-            Redraw(choices) => self.process_redraw_choice(
-                client,
-                opponent,
-                choices,
-                player_num,
-                from_str(msg)
-                    .map_err(|_| "unable to deserialize input into redraw choice".to_string())
-                    .unwrap(),
-            ),
-            InGame(inputs) => self.process_input(
-                client,
-                opponent,
-                inputs,
-                player_num,
-                from_str(msg)
-                    .map_err(|_| "unable to deserialize input into game input".to_string())
-                    .unwrap(),
-            ),
-            Rematch(choices) => self.process_rematch_choice(
-                client,
-                opponent,
-                choices,
-                player_num,
-                from_str(msg)
-                    .map_err(|_| "unable to deserialize input into rematch choice".to_string())
-                    .unwrap(),
-            ),
+            Redraw(choices) => {
+                let choice: bool = match from_str(msg) {
+                    Ok(choice) => choice,
+                    Err(err) => {
+                        warn!("Failed to deserialize input into redraw choice: {}", err);
+                        return;
+                    }
+                };
+                self.process_redraw_choice(
+                    client,
+                    opponent,
+                    choices,
+                    player_num,
+                    choice
+                )
+            }
+            InGame(inputs) => {
+                let input: RawInput = match from_str(msg) {
+                    Ok(input) => input,
+                    Err(err) => {
+                        warn!("Failed to deserialize input into game input: {}", err);
+                        return;
+                    }
+                };
+                match self.process_input(
+                    client,
+                    opponent,
+                    inputs,
+                    player_num,
+                    input
+                ) {
+                    Ok(state) => state,
+                    Err(err) => {
+                        warn!("Invalid game input: {}", err);
+                        return;
+                    }
+                }
+            }
+            Rematch(choices) => {
+                let input: bool = match from_str(msg) {
+                    Ok(input) => input,
+                    Err(err) => {
+                        warn!("Failed to deserialize input into rematch choice: {}", err);
+                        return;
+                    }
+                };
+                self.process_rematch_choice(
+                    client,
+                    opponent,
+                    choices,
+                    player_num,
+                    input
+                )
+            }
             End => End,
         }
     }
 
     fn process_redraw_choice(
         &mut self,
-        client: &Client,
-        opponent: &Client,
+        client: &impl SendMsg,
+        opponent: &impl SendMsg,
         choices: [Option<bool>; 2],
         player_num: PlayerNum,
         choice: bool,
@@ -165,24 +191,23 @@ impl<R: DrawRng + Default + Debug> Game<R> {
 
     fn process_input(
         &mut self,
-        client: &Client,
-        opponent: &Client,
+        client: &impl SendMsg,
+        opponent: &impl SendMsg,
         inputs: [Option<ValidInput>; 2],
         player_num: PlayerNum,
         input: RawInput,
-    ) -> ProtocolState {
+    ) -> Result<ProtocolState, InputError> {
         let validated_input = ValidInput::new(
             input,
             self.game_state.board(),
             self.game_state.player(player_num),
             player_num,
-        )
-        .unwrap();
+        )?;
         let choices = match player_num {
             PlayerNum::P1 => [Some(validated_input), inputs[1].clone()],
             PlayerNum::P2 => [inputs[0].clone(), Some(validated_input)],
         };
-        match choices {
+        let state = match choices {
             [Some(input1), Some(input2)] => {
                 self.game_state.update(input1, input2);
                 if self.game_state.turns_left() == 0 {
@@ -221,13 +246,14 @@ impl<R: DrawRng + Default + Debug> Game<R> {
                 }
             }
             _ => ProtocolState::InGame(choices),
-        }
+        };
+        Ok(state)
     }
 
     fn process_rematch_choice(
         &mut self,
-        client: &Client,
-        opponent: &Client,
+        client: &impl SendMsg,
+        opponent: &impl SendMsg,
         choices: [Option<bool>; 2],
         player_num: PlayerNum,
         choice: bool,
@@ -260,8 +286,8 @@ impl<R: DrawRng + Default + Debug> Game<R> {
 fn send_redraw_responses<R: DrawRng + Debug>(
     game_state: &mut GameState<R>,
     player_num: PlayerNum,
-    client: &Client,
-    opponent: &Client,
+    client: &impl SendMsg,
+    opponent: &impl SendMsg,
 ) {
     let client_msg = RedrawResponse {
         player: game_state.player(player_num).clone(),
@@ -273,9 +299,9 @@ fn send_redraw_responses<R: DrawRng + Debug>(
 }
 
 fn send_outcomes(
-    client: &Client,
+    client: &impl SendMsg,
     client_outcome: Outcome,
-    opponent: &Client,
+    opponent: &impl SendMsg,
     opponent_outcome: Outcome,
 ) {
     let client_msg = GameEndResponse {
@@ -294,18 +320,15 @@ fn other_player(player_num: PlayerNum) -> PlayerNum {
     }
 }
 
-fn send_message<M: Serialize>(client: &Client, message: M) {
-    if let Some(sender) = &client.sender {
-        sender
-            .send(Ok(Message::text(serde_json::to_string(&message).unwrap())))
-            .unwrap();
-    }
+fn send_message<M: Serialize>(client: &impl SendMsg, message: M) {
+    // If the message fails to send even after retries, there's not much we can do but proceed
+    let _ = util::retry(1, || client.send(&serde_json::to_string(&message).unwrap()));
 }
 
 fn send_messages<M1: Serialize, M2: Serialize>(
-    client1: &Client,
+    client1: &impl SendMsg,
     message1: M1,
-    client2: &Client,
+    client2: &impl SendMsg,
     message2: M2,
 ) {
     send_message(client1, message1);
@@ -316,13 +339,13 @@ fn send_messages<M1: Serialize, M2: Serialize>(
 mod tests {
     use super::*;
 
-    /*
     #[test]
     fn test_handle_message() {
+        Game::new()
+    pub fn new(game_state: GameState<R>, player_ids: [String; 2]) -> Self {
     pub fn handle_message(&mut self, player_num: PlayerNum, msg: Message) -> Result<Response, String> {
         match game.handle_message(player_num, msg) {
             Ok(close_connections) => if close_connections {},
         }
     }
-    */
 }

@@ -1,11 +1,12 @@
-use crate::client::{Client, Clients, Status};
+use crate::client::{Client, Clients, SendMsg, Status, Sender};
 use crate::game::{Game, Games, StateResponse};
 use crate::tableturf::{GameState, PlayerNum};
+use crate::util;
 use futures::{FutureExt, StreamExt};
 use hashbrown::HashMap;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use tracing::{info, warn};
+use tracing::{info, error};
 use uuid::Uuid;
 use warp::ws::{Message, WebSocket};
 
@@ -22,20 +23,20 @@ pub async fn client_connection(
     let client_rcv = UnboundedReceiverStream::new(client_rcv);
     tokio::task::spawn(client_rcv.forward(client_ws_sender).map(|result| {
         if let Err(e) = result {
-            eprintln!("error sending websocket msg: {}", e);
+            error!("error sending websocket msg: {}", e);
         }
     }));
 
-    client.sender = Some(client_sender);
+    client.sender = Some(Sender(client_sender));
     clients.write().await.insert(id.clone(), client);
 
-    println!("{} connected", id);
+    info!("{} connected", id);
 
     while let Some(result) = client_ws_rcv.next().await {
         let msg = match result {
             Ok(msg) => msg,
             Err(e) => {
-                eprintln!("error receiving ws message for id: {}): {}", id.clone(), e);
+                error!("error receiving ws message for id: {}): {}", id.clone(), e);
                 break;
             }
         };
@@ -43,7 +44,7 @@ pub async fn client_connection(
     }
 
     clients.write().await.remove(&id);
-    println!("{} disconnected", id);
+    info!("{} disconnected", id);
 }
 
 #[tracing::instrument]
@@ -62,7 +63,7 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients, games: &mut Games
     let client = match clients_map.get_mut(id) {
         Some(v) => v,
         None => {
-            println!(
+            error!(
                 "Message from client {} did not match any connected clients",
                 id
             );
@@ -77,29 +78,21 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients, games: &mut Games
             let game = match games_map.get_mut(&uuid) {
                 Some(v) => v,
                 None => {
-                    warn!("Game with ID {} did not match any existing games", uuid);
+                    error!("Game with ID {} did not match any existing games", uuid);
                     return;
                 }
             };
+            let opponent_id = &game.opponent_id(id.to_string());
             let [client, opponent] = clients_map
-                .get_many_mut([id, &game.opponent_id(id.to_string())])
+                .get_many_mut([id, opponent_id])
                 .unwrap();
-            game.handle_message(player_num, message, client, opponent);
+            game.handle_message(player_num, message, client.sender.as_ref().unwrap(), opponent.sender.as_ref().unwrap());
             if game.is_over() {
                 client.status = Status::Idle;
-                client
-                    .sender
-                    .as_ref()
-                    .unwrap()
-                    .send(Ok(Message::text("leave")))
-                    .unwrap();
+                // If the message fails to send even after retries, there's not much we can do but proceed
+                let _ = util::retry::<(), _, _>(1, || client.sender.as_ref().unwrap().send("leave"));
                 opponent.status = Status::Idle;
-                opponent
-                    .sender
-                    .as_ref()
-                    .unwrap()
-                    .send(Ok(Message::text("leave")))
-                    .unwrap();
+                let _ = util::retry::<(), _, _>(1, || opponent.sender.as_ref().unwrap().send("leave"));
                 games_map.remove(&uuid);
             }
         }
@@ -125,28 +118,21 @@ async fn client_join(id: &str, clients: &mut HashMap<String, Client>, games: &mu
         let game_state = GameState::default();
         let player1 = game_state.player(PlayerNum::P1).clone();
         let player2 = game_state.player(PlayerNum::P2).clone();
-        if let Some(sender) = &client.sender {
-            sender
-                .send(Ok(Message::text(
-                    serde_json::to_string(&StateResponse {
-                        board: game_state.board().clone(),
-                        player: player1,
-                    })
-                    .unwrap(),
-                )))
-                .unwrap();
-        }
-        if let Some(sender) = &opponent.sender {
-            sender
-                .send(Ok(Message::text(
-                    serde_json::to_string(&StateResponse {
-                        board: game_state.board().clone(),
-                        player: player2,
-                    })
-                    .unwrap(),
-                )))
-                .unwrap();
-        }
+
+        // If we cannot serialize the response to the client, panic because that's a bug
+        let client_response = serde_json::to_string(&StateResponse {
+             board: game_state.board().clone(),
+             player: player1,
+        }).unwrap();
+
+        let opponent_response = serde_json::to_string(&StateResponse {
+            board: game_state.board().clone(),
+            player: player2,
+        }).unwrap();
+
+        // If the message fails to send even after retries, there's not much we can do but proceed
+        let _ = util::retry(1, || client.sender.as_ref().unwrap().send(&client_response));
+        let _ = util::retry(1, || opponent.sender.as_ref().unwrap().send(&opponent_response));
 
         let game_uuid = Uuid::new_v4().as_simple().to_string();
         games.write().await.insert(
@@ -162,7 +148,10 @@ async fn client_join(id: &str, clients: &mut HashMap<String, Client>, games: &mu
             player_num: PlayerNum::P2,
         };
     } else {
-        let client = clients.get_mut(id).unwrap();
-        client.status = Status::JoiningGame;
+        match clients.get_mut(id) {
+            Some(c) => c.status = Status::JoiningGame,
+            None => error!("Joining client {} not in list of registered clients", id),
+        }
     }
 }
+

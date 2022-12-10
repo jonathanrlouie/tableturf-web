@@ -12,6 +12,7 @@ mod game;
 mod handler;
 mod tableturf;
 mod ws;
+mod util;
 
 #[tracing::instrument]
 #[tokio::main]
