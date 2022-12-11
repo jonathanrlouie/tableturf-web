@@ -81,12 +81,12 @@ impl<R: DrawRng + Default + Debug> Game<R> {
         }
     }
 
-    pub fn handle_message<S: SendMsg>(
+    pub fn handle_message(
         &mut self,
         player_num: PlayerNum,
         msg: &str,
-        client: &S,
-        opponent: &S,
+        client: &impl SendMsg,
+        opponent: &impl SendMsg,
     ) {
         use ProtocolState::*;
         self.protocol_state = match self.protocol_state.clone() {
@@ -338,14 +338,75 @@ fn send_messages<M1: Serialize, M2: Serialize>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tableturf::*;
+    use crate::client::SendError;
+
+    struct MockSender;
+    impl SendMsg for MockSender {
+        fn send(&self, _msg: &str) -> Result<(), SendError> {
+            Ok(())
+        }
+    }
+
+    #[derive(Debug)]
+    struct MockRng;
+
+    impl Default for MockRng {
+        fn default() -> Self {
+            MockRng
+        }
+    }
+
+    impl DrawRng for MockRng {
+        fn draw<T, I: Iterator<Item = T> + Sized>(&mut self, mut iter: I) -> Option<T> {
+            iter.next()
+        }
+
+        fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Hand {
+            let v: Vec<DeckIndex> = iter.collect();
+            Hand::new([v[0], v[1], v[2], v[3]]).unwrap()
+        }
+    }
 
     #[test]
-    fn test_handle_message() {
-        Game::new()
-    pub fn new(game_state: GameState<R>, player_ids: [String; 2]) -> Self {
-    pub fn handle_message(&mut self, player_num: PlayerNum, msg: Message) -> Result<Response, String> {
-        match game.handle_message(player_num, msg) {
-            Ok(close_connections) => if close_connections {},
-        }
+    fn test_handle_invalid_redraw_message() {
+        let game_state = GameState::<MockRng>::default();
+        let mut game = Game::new(game_state, ["id1".to_string(), "id2".to_string()]);
+        game.handle_message(PlayerNum::P1, "foo", &MockSender, &MockSender);
+        assert!(matches!(game.protocol_state, ProtocolState::Redraw([None, None])));
+    }
+
+    #[test]
+    fn test_handle_redraw_messages() {
+        let game_state = GameState::<MockRng>::default();
+        let mut game = Game::new(game_state, ["id1".to_string(), "id2".to_string()]);
+        game.handle_message(PlayerNum::P1, "true", &MockSender, &MockSender);
+        assert!(matches!(game.protocol_state, ProtocolState::Redraw([Some(true), None])));
+        game.handle_message(PlayerNum::P2, "false", &MockSender, &MockSender);
+        assert!(matches!(game.protocol_state, ProtocolState::InGame([None, None])));
+    }
+
+    #[test]
+    fn test_handle_invalid_game_input_message() {
+        let game_state = GameState::<MockRng>::default();
+        let mut game = Game::new(game_state, ["id1".to_string(), "id2".to_string()]);
+        game.handle_message(PlayerNum::P1, "true", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P2, "false", &MockSender, &MockSender);
+        assert!(matches!(game.protocol_state, ProtocolState::InGame([None, None])));
+        game.handle_message(PlayerNum::P1, "true", &MockSender, &MockSender);
+        assert!(matches!(game.protocol_state, ProtocolState::InGame([None, None])));
+    }
+
+    #[test]
+    fn test_handle_game_input_messages() {
+        let game_state = GameState::<MockRng>::default();
+        let mut game = Game::new(game_state, ["id1".to_string(), "id2".to_string()]);
+        game.handle_message(PlayerNum::P1, "true", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P2, "false", &MockSender, &MockSender);
+        assert!(matches!(game.protocol_state, ProtocolState::InGame([None, None])));
+        assert_eq!(game.game_state.turns_left(), 12);
+        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        assert_eq!(game.game_state.turns_left(), 11);
     }
 }
