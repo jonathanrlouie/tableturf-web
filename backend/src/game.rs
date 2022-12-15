@@ -409,4 +409,43 @@ mod tests {
         game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
         assert_eq!(game.game_state.turns_left(), 11);
     }
+
+    #[test]
+    fn test_handle_rematch_messages() {
+        let game_state = GameState::<MockRng>::default();
+        let mut game = Game::new(game_state, ["id1".to_string(), "id2".to_string()]);
+        game.handle_message(PlayerNum::P1, "true", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P2, "false", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        assert!(matches!(game.protocol_state, ProtocolState::Rematch([None, None])));
+        game.handle_message(PlayerNum::P1, "foo", &MockSender, &MockSender);
+        assert!(matches!(game.protocol_state, ProtocolState::Rematch([None, None])));
+        game.handle_message(PlayerNum::P1, "true", &MockSender, &MockSender);
+        assert!(matches!(game.protocol_state, ProtocolState::Rematch([Some(true), None])));
+        game.handle_message(PlayerNum::P2, "true", &MockSender, &MockSender);
+        assert!(matches!(game.protocol_state, ProtocolState::Redraw([None, None])));
+    }
 }
