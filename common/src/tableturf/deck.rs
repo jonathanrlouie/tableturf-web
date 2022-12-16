@@ -23,7 +23,7 @@ pub enum HandIndex {
     H4,
 }
 
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Hand([DeckIndex; HAND_SIZE]);
 
 impl Index<HandIndex> for Hand {
@@ -66,7 +66,7 @@ pub trait DrawRng {
     fn draw_hand<I: Iterator<Item = DeckIndex> + Sized>(&mut self, iter: I) -> Hand;
 }
 
-#[derive(Serialize, Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum DeckIndex {
     D1,
     D2,
@@ -128,7 +128,7 @@ pub fn idx_to_usize(index: DeckIndex) -> usize {
     }
 }
 
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Deck {
     cards: [Card; DECK_SIZE],
     // true means the card can be drawn, false means it cannot be drawn

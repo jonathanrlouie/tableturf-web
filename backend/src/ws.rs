@@ -1,7 +1,7 @@
 use crate::client::{Client, Clients, SendMsg, Sender, Status};
-use crate::game::{Game, Games, StateResponse};
+use crate::game::{Game, Games};
 use crate::util;
-use common::{GameState, PlayerNum};
+use common::{GameState, PlayerNum, messages::StateResponse};
 use futures::{FutureExt, StreamExt};
 use hashbrown::HashMap;
 use tokio::sync::mpsc;

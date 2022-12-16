@@ -1,10 +1,10 @@
 use crate::tableturf::card::Card;
 use crate::tableturf::deck::{Deck, DrawRng, Hand, HandIndex};
 use crate::tableturf::input::Placement;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use std::ops::{Index, IndexMut};
 
-#[derive(Serialize, Copy, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq)]
 pub enum PlayerNum {
     P1,
     P2,
@@ -38,7 +38,7 @@ impl Players {
     }
 }
 
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Player {
     hand: Hand,
     deck: Deck,

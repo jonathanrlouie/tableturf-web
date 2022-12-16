@@ -1,5 +1,5 @@
 use crate::tableturf::player::PlayerNum;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use std::fmt;
 use thiserror::Error;
 
@@ -66,7 +66,7 @@ pub enum BoardPositionError {
     CoordinateToUsize(Coordinate, i32),
 }
 
-#[derive(Serialize, Copy, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq)]
 pub enum BoardSpace {
     Empty,
     Ink {
@@ -195,7 +195,7 @@ pub const MAX_BOARD_HEIGHT: usize = 26;
 
 // This cannot be an array, because custom boards might be loaded at runtime
 // TODO: Optimise this code by flattening the Vectors
-#[derive(Serialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Board(Vec<Vec<BoardSpace>>);
 
 impl Board {

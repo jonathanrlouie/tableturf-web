@@ -1,9 +1,14 @@
 use yew::prelude::*;
-use common::{Board, BoardSpace, PlayerNum, DeckRng, GameState};
+use common::{Board, BoardSpace, Card, CardSpace, InkSpace, PlayerNum, DeckRng, GameState};
 
 #[derive(Properties, PartialEq)]
 pub struct BoardProps {
     pub board: Board
+}
+
+#[derive(Properties, PartialEq)]
+pub struct CardProps {
+    pub card: Card
 }
 
 #[function_component(Battle)]
@@ -69,14 +74,14 @@ pub fn board(props: &BoardProps) -> Html {
                 class={classes!("board-grid")}
                 style={format!("display: grid; grid-template-rows: repeat({}, 1fr); grid-template-columns: repeat({}, 1fr)", height, width)}>
                 {
-                    spaces.iter().flatten().map(|s| view_space(s)).collect::<Html>()
+                    spaces.iter().flatten().map(|s| view_board_space(s)).collect::<Html>()
                 }
             </div>
         </div>
     }
 }
 
-fn view_space(space: &BoardSpace) -> Html {
+fn view_board_space(space: &BoardSpace) -> Html {
     html! {
         <div class={match space {
             BoardSpace::Empty => classes!("empty"),
@@ -106,3 +111,30 @@ fn get_special_classes(player_num: &PlayerNum, is_activated: bool) -> Classes {
         classes!(get_player_num_class(player_num), "special")
     }
 } 
+
+#[function_component(CardComponent)]
+fn card(props: &CardProps) -> Html {
+    let card = props.card;
+    html! {
+        <div class={classes!("card")}>
+            <div>{card.name()}</div>
+            <div class={classes!("card-grid")}>
+                {
+                    card.spaces().iter().flatten().map(|s| view_card_space(s)).collect::<Html>()
+                }
+            </div>
+            <div>{format!("Priority: {}", card.priority())}</div>
+            <div>{format!("Special cost: {}", card.cost())}</div>
+        </div>
+    }
+}
+
+fn view_card_space(space: CardSpace) -> Html {
+    html! {
+        <div class={classes!(match space {
+            Some(InkSpace::Normal) => "normal",
+            Some(InkSpace::Special) => "special",
+            None => "empty"
+        })}></div>
+    }
+}

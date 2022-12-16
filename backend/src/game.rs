@@ -1,8 +1,8 @@
 use crate::client::SendMsg;
 use crate::util;
 use common::{
-    Board, DeckRng, DrawRng, GameState, InputError, Outcome as GameOutcome, Player, PlayerNum,
-    RawInput, ValidInput,
+    DeckRng, DrawRng, GameState, InputError, Outcome as GameOutcome, PlayerNum,
+    RawInput, ValidInput, messages::{RedrawResponse, StateResponse, Outcome, GameEndResponse}
 };
 use hashbrown::HashMap;
 use serde::Serialize;
@@ -13,29 +13,6 @@ use tokio::sync::RwLock;
 use tracing::{info, warn};
 
 pub type Games = Arc<RwLock<HashMap<String, Game<DeckRng>>>>;
-
-#[derive(Serialize, Debug)]
-struct RedrawResponse {
-    player: Player,
-}
-
-#[derive(Serialize, Debug)]
-pub struct StateResponse {
-    pub board: Board,
-    pub player: Player,
-}
-
-#[derive(Serialize, Debug)]
-enum Outcome {
-    Win,
-    Lose,
-    Draw,
-}
-
-#[derive(Serialize, Debug)]
-struct GameEndResponse {
-    outcome: Outcome,
-}
 
 #[derive(Clone, Debug)]
 enum ProtocolState {
