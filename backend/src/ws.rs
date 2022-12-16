@@ -1,12 +1,12 @@
-use crate::client::{Client, Clients, SendMsg, Status, Sender};
+use crate::client::{Client, Clients, SendMsg, Sender, Status};
 use crate::game::{Game, Games, StateResponse};
-use crate::tableturf::{GameState, PlayerNum};
 use crate::util;
+use common::{GameState, PlayerNum};
 use futures::{FutureExt, StreamExt};
 use hashbrown::HashMap;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use tracing::{info, error};
+use tracing::{error, info};
 use uuid::Uuid;
 use warp::ws::{Message, WebSocket};
 
@@ -83,16 +83,21 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients, games: &mut Games
                 }
             };
             let opponent_id = &game.opponent_id(id.to_string());
-            let [client, opponent] = clients_map
-                .get_many_mut([id, opponent_id])
-                .unwrap();
-            game.handle_message(player_num, message, client.sender.as_ref().unwrap(), opponent.sender.as_ref().unwrap());
+            let [client, opponent] = clients_map.get_many_mut([id, opponent_id]).unwrap();
+            game.handle_message(
+                player_num,
+                message,
+                client.sender.as_ref().unwrap(),
+                opponent.sender.as_ref().unwrap(),
+            );
             if game.is_over() {
                 client.status = Status::Idle;
                 // If the message fails to send even after retries, there's not much we can do but proceed
-                let _ = util::retry::<(), _, _>(1, || client.sender.as_ref().unwrap().send("leave"));
+                let _ =
+                    util::retry::<(), _, _>(1, || client.sender.as_ref().unwrap().send("leave"));
                 opponent.status = Status::Idle;
-                let _ = util::retry::<(), _, _>(1, || opponent.sender.as_ref().unwrap().send("leave"));
+                let _ =
+                    util::retry::<(), _, _>(1, || opponent.sender.as_ref().unwrap().send("leave"));
                 games_map.remove(&uuid);
             }
         }
@@ -121,18 +126,22 @@ async fn client_join(id: &str, clients: &mut HashMap<String, Client>, games: &mu
 
         // If we cannot serialize the response to the client, panic because that's a bug
         let client_response = serde_json::to_string(&StateResponse {
-             board: game_state.board().clone(),
-             player: player1,
-        }).unwrap();
+            board: game_state.board().clone(),
+            player: player1,
+        })
+        .unwrap();
 
         let opponent_response = serde_json::to_string(&StateResponse {
             board: game_state.board().clone(),
             player: player2,
-        }).unwrap();
+        })
+        .unwrap();
 
         // If the message fails to send even after retries, there's not much we can do but proceed
         let _ = util::retry(1, || client.sender.as_ref().unwrap().send(&client_response));
-        let _ = util::retry(1, || opponent.sender.as_ref().unwrap().send(&opponent_response));
+        let _ = util::retry(1, || {
+            opponent.sender.as_ref().unwrap().send(&opponent_response)
+        });
 
         let game_uuid = Uuid::new_v4().as_simple().to_string();
         games.write().await.insert(
@@ -154,4 +163,3 @@ async fn client_join(id: &str, clients: &mut HashMap<String, Client>, games: &mu
         }
     }
 }
-

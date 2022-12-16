@@ -1,15 +1,16 @@
 use crate::client::SendMsg;
 use crate::util;
-use crate::tableturf::{
-    Board, DeckRng, DrawRng, GameState, Outcome as GameOutcome, Player, PlayerNum, RawInput,
-    ValidInput, InputError,
+use common::{
+    Board, DeckRng, DrawRng, GameState, InputError, Outcome as GameOutcome, Player, PlayerNum,
+    RawInput, ValidInput,
 };
 use hashbrown::HashMap;
-use serde::Serialize; use serde_json::from_str;
+use serde::Serialize;
+use serde_json::from_str;
 use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{warn, info};
+use tracing::{info, warn};
 
 pub type Games = Arc<RwLock<HashMap<String, Game<DeckRng>>>>;
 
@@ -98,13 +99,7 @@ impl<R: DrawRng + Default + Debug> Game<R> {
                         return;
                     }
                 };
-                self.process_redraw_choice(
-                    client,
-                    opponent,
-                    choices,
-                    player_num,
-                    choice
-                )
+                self.process_redraw_choice(client, opponent, choices, player_num, choice)
             }
             InGame(inputs) => {
                 let input: RawInput = match from_str(msg) {
@@ -114,13 +109,7 @@ impl<R: DrawRng + Default + Debug> Game<R> {
                         return;
                     }
                 };
-                match self.process_input(
-                    client,
-                    opponent,
-                    inputs,
-                    player_num,
-                    input
-                ) {
+                match self.process_input(client, opponent, inputs, player_num, input) {
                     Ok(state) => state,
                     Err(err) => {
                         warn!("Invalid game input: {}", err);
@@ -136,13 +125,7 @@ impl<R: DrawRng + Default + Debug> Game<R> {
                         return;
                     }
                 };
-                self.process_rematch_choice(
-                    client,
-                    opponent,
-                    choices,
-                    player_num,
-                    input
-                )
+                self.process_rematch_choice(client, opponent, choices, player_num, input)
             }
             End => End,
         }
@@ -338,8 +321,8 @@ fn send_messages<M1: Serialize, M2: Serialize>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tableturf::*;
     use crate::client::SendError;
+    use crate::tableturf::*;
 
     struct MockSender;
     impl SendMsg for MockSender {
@@ -373,7 +356,10 @@ mod tests {
         let game_state = GameState::<MockRng>::default();
         let mut game = Game::new(game_state, ["id1".to_string(), "id2".to_string()]);
         game.handle_message(PlayerNum::P1, "foo", &MockSender, &MockSender);
-        assert!(matches!(game.protocol_state, ProtocolState::Redraw([None, None])));
+        assert!(matches!(
+            game.protocol_state,
+            ProtocolState::Redraw([None, None])
+        ));
     }
 
     #[test]
@@ -381,9 +367,15 @@ mod tests {
         let game_state = GameState::<MockRng>::default();
         let mut game = Game::new(game_state, ["id1".to_string(), "id2".to_string()]);
         game.handle_message(PlayerNum::P1, "true", &MockSender, &MockSender);
-        assert!(matches!(game.protocol_state, ProtocolState::Redraw([Some(true), None])));
+        assert!(matches!(
+            game.protocol_state,
+            ProtocolState::Redraw([Some(true), None])
+        ));
         game.handle_message(PlayerNum::P2, "false", &MockSender, &MockSender);
-        assert!(matches!(game.protocol_state, ProtocolState::InGame([None, None])));
+        assert!(matches!(
+            game.protocol_state,
+            ProtocolState::InGame([None, None])
+        ));
     }
 
     #[test]
@@ -392,9 +384,15 @@ mod tests {
         let mut game = Game::new(game_state, ["id1".to_string(), "id2".to_string()]);
         game.handle_message(PlayerNum::P1, "true", &MockSender, &MockSender);
         game.handle_message(PlayerNum::P2, "false", &MockSender, &MockSender);
-        assert!(matches!(game.protocol_state, ProtocolState::InGame([None, None])));
+        assert!(matches!(
+            game.protocol_state,
+            ProtocolState::InGame([None, None])
+        ));
         game.handle_message(PlayerNum::P1, "true", &MockSender, &MockSender);
-        assert!(matches!(game.protocol_state, ProtocolState::InGame([None, None])));
+        assert!(matches!(
+            game.protocol_state,
+            ProtocolState::InGame([None, None])
+        ));
     }
 
     #[test]
@@ -403,10 +401,23 @@ mod tests {
         let mut game = Game::new(game_state, ["id1".to_string(), "id2".to_string()]);
         game.handle_message(PlayerNum::P1, "true", &MockSender, &MockSender);
         game.handle_message(PlayerNum::P2, "false", &MockSender, &MockSender);
-        assert!(matches!(game.protocol_state, ProtocolState::InGame([None, None])));
+        assert!(matches!(
+            game.protocol_state,
+            ProtocolState::InGame([None, None])
+        ));
         assert_eq!(game.game_state.turns_left(), 12);
-        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
+        game.handle_message(
+            PlayerNum::P1,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P2,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
         assert_eq!(game.game_state.turns_left(), 11);
     }
 
@@ -416,36 +427,168 @@ mod tests {
         let mut game = Game::new(game_state, ["id1".to_string(), "id2".to_string()]);
         game.handle_message(PlayerNum::P1, "true", &MockSender, &MockSender);
         game.handle_message(PlayerNum::P2, "false", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P1, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        game.handle_message(PlayerNum::P2, "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}", &MockSender, &MockSender);
-        assert!(matches!(game.protocol_state, ProtocolState::Rematch([None, None])));
+        game.handle_message(
+            PlayerNum::P1,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P2,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P1,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P2,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P1,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P2,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P1,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P2,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P1,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P2,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P1,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P2,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P1,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P2,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P1,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P2,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P1,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P2,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P1,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P2,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P1,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P2,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P1,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        game.handle_message(
+            PlayerNum::P2,
+            "{\"hand_idx\":\"H1\",\"action\":\"Pass\"}",
+            &MockSender,
+            &MockSender,
+        );
+        assert!(matches!(
+            game.protocol_state,
+            ProtocolState::Rematch([None, None])
+        ));
         game.handle_message(PlayerNum::P1, "foo", &MockSender, &MockSender);
-        assert!(matches!(game.protocol_state, ProtocolState::Rematch([None, None])));
+        assert!(matches!(
+            game.protocol_state,
+            ProtocolState::Rematch([None, None])
+        ));
         game.handle_message(PlayerNum::P1, "true", &MockSender, &MockSender);
-        assert!(matches!(game.protocol_state, ProtocolState::Rematch([Some(true), None])));
+        assert!(matches!(
+            game.protocol_state,
+            ProtocolState::Rematch([Some(true), None])
+        ));
         game.handle_message(PlayerNum::P2, "true", &MockSender, &MockSender);
-        assert!(matches!(game.protocol_state, ProtocolState::Redraw([None, None])));
+        assert!(matches!(
+            game.protocol_state,
+            ProtocolState::Redraw([None, None])
+        ));
     }
 }

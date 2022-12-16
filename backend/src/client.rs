@@ -1,9 +1,9 @@
-use crate::tableturf::PlayerNum;
+use common::PlayerNum;
 use hashbrown::HashMap;
 use std::sync::Arc;
+use thiserror::Error;
 use tokio::sync::{mpsc, RwLock};
 use warp::ws::Message;
-use thiserror::Error;
 
 #[derive(Error, Debug)]
 #[error("Error sending message")]
@@ -37,4 +37,3 @@ impl SendMsg for Sender {
         self.0.send(Ok(Message::text(msg))).map_err(|_| SendError)
     }
 }
-
