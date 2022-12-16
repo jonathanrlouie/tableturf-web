@@ -1,6 +1,6 @@
 use crate::tableturf::board::{Board, BoardPosition, BoardSpace};
 use crate::tableturf::card::{Card, CardSpace, InkSpace};
-use crate::tableturf::deck::{Hand, Deck, DeckIndex, DrawRng, HandIndex};
+use crate::tableturf::deck::{Deck, DeckIndex, DrawRng, Hand, HandIndex};
 use crate::tableturf::input::{Input, Placement, ValidInput};
 use crate::tableturf::player::{Player, PlayerNum, Players};
 use rand::prelude::IteratorRandom;
@@ -52,8 +52,8 @@ fn default_deck() -> [Card; 15] {
     let i: CardSpace = Some(InkSpace::Normal);
     let s: CardSpace = Some(InkSpace::Special);
     [
-        // Splattershot
         Card::new(
+            "Splattershot".to_string(),
             8,
             [
                 [e, e, e, e, e, e, e, e],
@@ -67,8 +67,8 @@ fn default_deck() -> [Card; 15] {
             ],
             3,
         ),
-        // Slosher
         Card::new(
+            "Slosher".to_string(),
             6,
             [
                 [e, e, e, e, e, e, e, e],
@@ -82,8 +82,8 @@ fn default_deck() -> [Card; 15] {
             ],
             3,
         ),
-        // Zapfish
         Card::new(
+            "Zapfish".to_string(),
             9,
             [
                 [e, e, e, e, e, e, e, e],
@@ -97,8 +97,8 @@ fn default_deck() -> [Card; 15] {
             ],
             4,
         ),
-        // Blaster
         Card::new(
+            "Blaster".to_string(),
             8,
             [
                 [e, e, e, e, e, e, e, e],
@@ -112,8 +112,8 @@ fn default_deck() -> [Card; 15] {
             ],
             3,
         ),
-        // Splat Dualies
         Card::new(
+            "Splat Dualies".to_string(),
             8,
             [
                 [e, e, e, e, e, e, e, e],
@@ -127,8 +127,8 @@ fn default_deck() -> [Card; 15] {
             ],
             3,
         ),
-        // Flooder
         Card::new(
+            "Flooder".to_string(),
             14,
             [
                 [e, e, e, e, e, e, e, e],
@@ -142,8 +142,8 @@ fn default_deck() -> [Card; 15] {
             ],
             5,
         ),
-        // Splat Roller
         Card::new(
+            "Splat Roller".to_string(),
             9,
             [
                 [e, e, e, e, e, e, e, e],
@@ -157,8 +157,8 @@ fn default_deck() -> [Card; 15] {
             ],
             4,
         ),
-        // Tri-Stringer
         Card::new(
+            "Tri-Stringer".to_string(),
             11,
             [
                 [e, e, e, e, e, e, e, e],
@@ -172,8 +172,8 @@ fn default_deck() -> [Card; 15] {
             ],
             4,
         ),
-        // Chum
         Card::new(
+            "Chum".to_string(),
             5,
             [
                 [e, e, e, e, e, e, e, e],
@@ -187,8 +187,8 @@ fn default_deck() -> [Card; 15] {
             ],
             2,
         ),
-        // Splat Charger
         Card::new(
+            "Splat Charger".to_string(),
             8,
             [
                 [e, e, e, e, e, e, e, e],
@@ -202,8 +202,8 @@ fn default_deck() -> [Card; 15] {
             ],
             3,
         ),
-        // Splatana Wiper
         Card::new(
+            "Splatana Wiper".to_string(),
             5,
             [
                 [e, e, e, e, e, e, e, e],
@@ -217,8 +217,8 @@ fn default_deck() -> [Card; 15] {
             ],
             2,
         ),
-        // SquidForce
         Card::new(
+            "SquidForce".to_string(),
             10,
             [
                 [e, e, e, e, e, e, e, e],
@@ -232,8 +232,8 @@ fn default_deck() -> [Card; 15] {
             ],
             4,
         ),
-        // Heavy Splatling
         Card::new(
+            "Heavy Splatling".to_string(),
             12,
             [
                 [e, e, e, e, e, e, e, e],
@@ -247,8 +247,8 @@ fn default_deck() -> [Card; 15] {
             ],
             5,
         ),
-        // Splat Bomb
         Card::new(
+            "Splat Bomb".to_string(),
             3,
             [
                 [e, e, e, e, e, e, e, e],
@@ -262,8 +262,8 @@ fn default_deck() -> [Card; 15] {
             ],
             1,
         ),
-        // Marigold
         Card::new(
+            "Marigold".to_string(),
             15,
             [
                 [e, e, e, e, e, e, e, e],
@@ -520,7 +520,7 @@ mod tests {
     use super::*;
     use crate::tableturf::board::{Board, BoardPosition};
     use crate::tableturf::deck::{Deck, DeckIndex, Hand, HandIndex};
-    use crate::tableturf::input::{Action, RawPlacement, Placement, RawInput, Rotation};
+    use crate::tableturf::input::{Action, Placement, RawInput, RawPlacement, Rotation};
 
     #[derive(Debug)]
     struct MockRng1;
@@ -725,7 +725,7 @@ mod tests {
             x: -2,
             y: -2,
             special_activated: false,
-            rotation: Rotation::Zero
+            rotation: Rotation::Zero,
         };
         let hand_idx = HandIndex::H1;
         game_state.place(
@@ -776,13 +776,13 @@ mod tests {
             x: -2,
             y: -2,
             special_activated: false,
-            rotation: Rotation::Zero
+            rotation: Rotation::Zero,
         };
         let raw_placement2 = RawPlacement {
             x: -2,
             y: -2,
             special_activated: false,
-            rotation: Rotation::Zero
+            rotation: Rotation::Zero,
         };
         let hand_idx = HandIndex::H1;
         game_state1.place_both(
@@ -822,13 +822,13 @@ mod tests {
             x: -2,
             y: -2,
             special_activated: false,
-            rotation: Rotation::Zero
+            rotation: Rotation::Zero,
         };
         let raw_placement2 = RawPlacement {
             x: -1,
             y: -2,
             special_activated: false,
-            rotation: Rotation::Zero
+            rotation: Rotation::Zero,
         };
         let hand_idx = HandIndex::H1;
         game_state_offset.place_both(
@@ -867,13 +867,13 @@ mod tests {
             x: -2,
             y: -2,
             special_activated: false,
-            rotation: Rotation::Zero
+            rotation: Rotation::Zero,
         };
         let raw_placement2 = RawPlacement {
             x: -2,
             y: -3,
             special_activated: false,
-            rotation: Rotation::Zero
+            rotation: Rotation::Zero,
         };
         let hand_idx = HandIndex::H1;
         game_state2.place_both(

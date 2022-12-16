@@ -82,10 +82,10 @@ impl Placement {
             x: board_x,
             y: board_y,
             special_activated,
-            rotation
+            rotation,
         } = raw_placement;
         let selected_card = player.get_card(hand_idx);
-        let grid = rotate_input(&selected_card, rotation);
+        let grid = rotate_input(selected_card, rotation);
         let result = grid
             .iter()
             .enumerate()
@@ -100,7 +100,7 @@ impl Placement {
                     .map(|bp| (bp, s))
             })
             .collect::<Result<Vec<(BoardPosition, InkSpace)>, BoardPositionError>>();
-        let ink_spaces = result.map_err(|e| InputError::InvalidPosition(e))?;
+        let ink_spaces = result.map_err(InputError::InvalidPosition)?;
 
         if special_activated {
             // Check that player has enough special and that the special isn't
@@ -171,13 +171,7 @@ impl ValidInput {
                 input: Input::Pass,
             }),
             Action::Place(raw_placement) => {
-                let placement = Placement::new(
-                    raw_placement,
-                    hand_idx,
-                    board,
-                    player,
-                    player_num,
-                )?;
+                let placement = Placement::new(raw_placement, hand_idx, board, player, player_num)?;
 
                 Ok(Self {
                     hand_idx,
@@ -318,6 +312,7 @@ mod tests {
         let i: CardSpace = Some(InkSpace::Normal);
         let s: CardSpace = Some(InkSpace::Special);
         let splattershot = Card::new(
+            "Splattershot".to_string(),
             8,
             [
                 [e, e, e, e, e, e, e, e],
@@ -397,8 +392,8 @@ mod tests {
         let i: CardSpace = Some(InkSpace::Normal);
         let s: CardSpace = Some(InkSpace::Special);
         [
-            // Splattershot
             Card::new(
+                "Splattershot".to_string(),
                 8,
                 [
                     [e, e, e, e, e, e, e, e],
@@ -412,8 +407,8 @@ mod tests {
                 ],
                 3,
             ),
-            // Custom card 1
             Card::new(
+                "Custom card 1".to_string(),
                 6,
                 [
                     [i, e, e, e, e, e, e, e],
@@ -427,8 +422,8 @@ mod tests {
                 ],
                 3,
             ),
-            // Custom card 2
             Card::new(
+                "Custom card 2".to_string(),
                 9,
                 [
                     [e, e, e, e, e, e, e, e],
@@ -442,8 +437,8 @@ mod tests {
                 ],
                 4,
             ),
-            // Blaster
             Card::new(
+                "Blaster".to_string(),
                 8,
                 [
                     [e, e, e, e, e, e, e, e],
@@ -457,8 +452,8 @@ mod tests {
                 ],
                 3,
             ),
-            // Splat Dualies
             Card::new(
+                "Splat Dualies".to_string(),
                 8,
                 [
                     [e, e, e, e, e, e, e, e],
@@ -472,8 +467,8 @@ mod tests {
                 ],
                 3,
             ),
-            // Flooder
             Card::new(
+                "Flooder".to_string(),
                 14,
                 [
                     [e, e, e, e, e, e, e, e],
@@ -487,8 +482,8 @@ mod tests {
                 ],
                 5,
             ),
-            // Splat Roller
             Card::new(
+                "Splat Roller".to_string(),
                 9,
                 [
                     [e, e, e, e, e, e, e, e],
@@ -502,8 +497,8 @@ mod tests {
                 ],
                 4,
             ),
-            // Tri-Stringer
             Card::new(
+                "Tri-Stringer".to_string(),
                 11,
                 [
                     [e, e, e, e, e, e, e, e],
@@ -517,8 +512,8 @@ mod tests {
                 ],
                 4,
             ),
-            // Chum
             Card::new(
+                "Chum".to_string(),
                 5,
                 [
                     [e, e, e, e, e, e, e, e],
@@ -532,8 +527,8 @@ mod tests {
                 ],
                 2,
             ),
-            // Splat Charger
             Card::new(
+                "Splat Charger".to_string(),
                 8,
                 [
                     [e, e, e, e, e, e, e, e],
@@ -547,8 +542,8 @@ mod tests {
                 ],
                 3,
             ),
-            // Splatana Wiper
             Card::new(
+                "Splatana Wiper".to_string(),
                 5,
                 [
                     [e, e, e, e, e, e, e, e],
@@ -562,8 +557,8 @@ mod tests {
                 ],
                 2,
             ),
-            // SquidForce
             Card::new(
+                "SquidForce".to_string(),
                 10,
                 [
                     [e, e, e, e, e, e, e, e],
@@ -577,8 +572,8 @@ mod tests {
                 ],
                 4,
             ),
-            // Heavy Splatling
             Card::new(
+                "Heavy Splatling".to_string(),
                 12,
                 [
                     [e, e, e, e, e, e, e, e],
@@ -592,8 +587,8 @@ mod tests {
                 ],
                 5,
             ),
-            // Splat Bomb
             Card::new(
+                "Splat Bomb".to_string(),
                 3,
                 [
                     [e, e, e, e, e, e, e, e],
@@ -607,8 +602,8 @@ mod tests {
                 ],
                 1,
             ),
-            // Marigold
             Card::new(
+                "Marigold".to_string(),
                 15,
                 [
                     [e, e, e, e, e, e, e, e],
@@ -652,20 +647,15 @@ mod tests {
         .unwrap();
         let (deck, hand) = draw_hand2();
         let special = 5;
-        let player = Player::new(hand, deck, special);
+        let player = Player::new(hand, deck.clone(), special);
         let raw_placement = RawPlacement {
             x: -3,
             y: -3,
             special_activated: false,
-            rotation: Rotation::Two
+            rotation: Rotation::Two,
         };
-        let placement = Placement::new(
-            raw_placement,
-            HandIndex::H1,
-            &board,
-            &player,
-            PlayerNum::P1,
-        );
+        let placement =
+            Placement::new(raw_placement, HandIndex::H1, &board, &player, PlayerNum::P1);
         assert!(placement.is_ok());
         let placement = placement.unwrap();
         assert_eq!(placement.ink_spaces.len(), 3);
@@ -693,15 +683,10 @@ mod tests {
             x: -3,
             y: -3,
             special_activated: false,
-            rotation: Rotation::Two
+            rotation: Rotation::Two,
         };
-        let placement = Placement::new(
-            raw_placement,
-            HandIndex::H1,
-            &board,
-            &player,
-            PlayerNum::P1,
-        );
+        let placement =
+            Placement::new(raw_placement, HandIndex::H1, &board, &player, PlayerNum::P1);
         assert!(placement.is_err());
 
         // Test placing special on top of an inked space
@@ -715,19 +700,14 @@ mod tests {
             x: -3,
             y: -3,
             special_activated: true,
-            rotation: Rotation::Two
+            rotation: Rotation::Two,
         };
-        let placement = Placement::new(
-            raw_placement,
-            HandIndex::H1,
-            &board,
-            &player,
-            PlayerNum::P1,
-        );
+        let placement =
+            Placement::new(raw_placement, HandIndex::H1, &board, &player, PlayerNum::P1);
         assert!(placement.is_ok());
 
         let (_draw, hand) = draw_hand();
-        let player_no_special = Player::new(hand, deck, 0);
+        let player_no_special = Player::new(hand, deck.clone(), 0);
         // Test placing special with insufficient special meter
         let board = Board::new(vec![
             vec![empty, p1_ink, empty],
@@ -739,7 +719,7 @@ mod tests {
             x: -3,
             y: -3,
             special_activated: true,
-            rotation: Rotation::Two
+            rotation: Rotation::Two,
         };
         let placement = Placement::new(
             raw_placement,
@@ -761,15 +741,10 @@ mod tests {
             x: -3,
             y: -3,
             special_activated: true,
-            rotation: Rotation::Two
+            rotation: Rotation::Two,
         };
-        let placement = Placement::new(
-            raw_placement,
-            HandIndex::H1,
-            &board,
-            &player,
-            PlayerNum::P1,
-        );
+        let placement =
+            Placement::new(raw_placement, HandIndex::H1, &board, &player, PlayerNum::P1);
         assert!(placement.is_err());
 
         // Test placing ink without any ink nearby
@@ -783,15 +758,10 @@ mod tests {
             x: -3,
             y: -3,
             special_activated: false,
-            rotation: Rotation::Two
+            rotation: Rotation::Two,
         };
-        let placement = Placement::new(
-            raw_placement,
-            HandIndex::H1,
-            &board,
-            &player,
-            PlayerNum::P1,
-        );
+        let placement =
+            Placement::new(raw_placement, HandIndex::H1, &board, &player, PlayerNum::P1);
         assert!(placement.is_err());
 
         // Test placing special without any special nearby
@@ -805,15 +775,10 @@ mod tests {
             x: -3,
             y: -3,
             special_activated: true,
-            rotation: Rotation::Two
+            rotation: Rotation::Two,
         };
-        let placement = Placement::new(
-            raw_placement,
-            HandIndex::H1,
-            &board,
-            &player,
-            PlayerNum::P1,
-        );
+        let placement =
+            Placement::new(raw_placement, HandIndex::H1, &board, &player, PlayerNum::P1);
         assert!(placement.is_err());
 
         // Test placing ink with a special space nearby
@@ -827,15 +792,10 @@ mod tests {
             x: -3,
             y: -3,
             special_activated: false,
-            rotation: Rotation::Two
+            rotation: Rotation::Two,
         };
-        let placement = Placement::new(
-            raw_placement,
-            HandIndex::H1,
-            &board,
-            &player,
-            PlayerNum::P1,
-        );
+        let placement =
+            Placement::new(raw_placement, HandIndex::H1, &board, &player, PlayerNum::P1);
         assert!(placement.is_ok());
     }
 

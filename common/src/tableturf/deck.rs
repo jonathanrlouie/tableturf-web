@@ -9,8 +9,10 @@ pub const HAND_SIZE: usize = 4;
 
 #[derive(Error, Debug)]
 pub enum HandError {
-    #[error("Failed to create a new Hand since duplicate Deck indices were given. Given indices: {0:?}")]
-    DuplicateCards([DeckIndex; HAND_SIZE])
+    #[error(
+        "Failed to create a new Hand since duplicate Deck indices were given. Given indices: {0:?}"
+    )]
+    DuplicateCards([DeckIndex; HAND_SIZE]),
 }
 
 #[derive(Deserialize, Copy, Clone, Debug)]
@@ -49,9 +51,9 @@ impl IndexMut<HandIndex> for Hand {
 
 impl Hand {
     pub fn new(hand: [DeckIndex; HAND_SIZE]) -> Result<Self, HandError> {
-        let deduped: HashSet<DeckIndex> = HashSet::from_iter(hand.clone().into_iter());
+        let deduped: HashSet<DeckIndex> = HashSet::from_iter(hand.into_iter());
         if deduped.len() != HAND_SIZE {
-            return Err(HandError::DuplicateCards(hand.clone()));
+            return Err(HandError::DuplicateCards(hand));
         }
         Ok(Hand(hand))
     }
@@ -126,7 +128,7 @@ pub fn idx_to_usize(index: DeckIndex) -> usize {
     }
 }
 
-#[derive(Serialize, Copy, Clone, Debug)]
+#[derive(Serialize, Clone, Debug)]
 pub struct Deck {
     cards: [Card; DECK_SIZE],
     // true means the card can be drawn, false means it cannot be drawn
@@ -134,10 +136,7 @@ pub struct Deck {
 }
 
 impl Deck {
-    pub fn draw_hand<R: DrawRng>(
-        cards: [Card; DECK_SIZE],
-        rng: &mut R,
-    ) -> (Self, Hand) {
+    pub fn draw_hand<R: DrawRng>(cards: [Card; DECK_SIZE], rng: &mut R) -> (Self, Hand) {
         use DeckIndex::*;
         let indices = vec![
             D1, D2, D3, D4, D5, D6, D7, D8, D9, D10, D11, D12, D13, D14, D15,
@@ -151,10 +150,7 @@ impl Deck {
         card_states[idx_to_usize(hand.0[1])] = false;
         card_states[idx_to_usize(hand.0[2])] = false;
         card_states[idx_to_usize(hand.0[3])] = false;
-        (
-            Deck { cards, card_states },
-            hand,
-        )
+        (Deck { cards, card_states }, hand)
     }
 
     pub fn index(&self, index: DeckIndex) -> (&Card, &bool) {
@@ -177,8 +173,8 @@ impl Deck {
         }
     }
 
-    pub fn cards(self) -> [Card; DECK_SIZE] {
-        self.cards
+    pub fn cards(&self) -> &[Card; DECK_SIZE] {
+        &self.cards
     }
 
     pub fn draw_card<R: DrawRng>(&mut self, rng: &mut R) -> Option<DeckIndex> {
@@ -219,10 +215,23 @@ mod tests {
             [empty, empty, empty, empty, empty, empty, empty, empty],
             [empty, empty, empty, empty, empty, empty, empty, empty],
         ];
-        let card = Card::new(0, spaces, 0);
+        let card = Card::new("test".to_string(), 0, spaces, 0);
         let mut deck = Deck::draw_hand(
             [
-                card, card, card, card, card, card, card, card, card, card, card, card, card, card,
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
                 card,
             ],
             &mut MockRng,

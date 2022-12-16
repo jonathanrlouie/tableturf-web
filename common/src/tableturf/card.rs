@@ -12,20 +12,26 @@ pub type CardSpace = Option<InkSpace>;
 
 pub type Grid = [[CardSpace; ROW_LEN]; ROW_LEN];
 
-#[derive(Serialize, Copy, Clone, Debug, PartialEq)]
+#[derive(Serialize, Clone, Debug, PartialEq)]
 pub struct Card {
+    name: String,
     priority: u32,
     spaces: Grid,
     special: u32,
 }
 
 impl Card {
-    pub fn new(priority: u32, spaces: Grid, special: u32) -> Self {
+    pub fn new(name: String, priority: u32, spaces: Grid, special: u32) -> Self {
         Card {
+            name,
             priority,
             spaces,
             special,
         }
+    }
+
+    pub fn name(&self) -> String {
+        self.name.clone()
     }
 
     pub fn priority(&self) -> u32 {

@@ -62,12 +62,12 @@ impl Player {
         &self.deck
     }
 
-    pub fn get_card(&self, hand_idx: HandIndex) -> Card {
-        *self.deck.index(self.hand[hand_idx]).0
+    pub fn get_card(&self, hand_idx: HandIndex) -> &Card {
+        self.deck.index(self.hand[hand_idx]).0
     }
 
     pub fn redraw_hand<R: DrawRng>(&mut self, rng: &mut R) {
-        let (deck, hand) = Deck::draw_hand(self.deck.cards(), rng);
+        let (deck, hand) = Deck::draw_hand(self.deck.cards().clone(), rng);
         self.hand = hand;
         self.deck = deck;
     }
@@ -119,10 +119,23 @@ mod tests {
             [empty, empty, empty, empty, empty, empty, empty, empty],
             [empty, empty, empty, empty, empty, empty, empty, empty],
         ];
-        let card = Card::new(0, spaces, 0);
+        let card = Card::new("test".to_string(), 0, spaces, 0);
         let (deck, hand) = Deck::draw_hand(
             [
-                card, card, card, card, card, card, card, card, card, card, card, card, card, card,
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
+                card.clone(),
                 card,
             ],
             &mut MockRng,

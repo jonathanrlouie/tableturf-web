@@ -6,7 +6,8 @@ mod input;
 mod player;
 
 pub use board::{Board, BoardSpace};
-pub use deck::{Deck, DrawRng, DeckIndex, Hand};
+pub use card::{Card, CardSpace, InkSpace};
+pub use deck::{Deck, DeckIndex, DrawRng, Hand};
 pub use game_state::{DeckRng, GameState, Outcome};
-pub use input::{RawInput, ValidInput, InputError};
+pub use input::{InputError, RawInput, ValidInput};
 pub use player::{Player, PlayerNum};
