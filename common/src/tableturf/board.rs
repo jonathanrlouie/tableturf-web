@@ -215,7 +215,7 @@ impl Board {
                 max: Dimension::Height(MAX_BOARD_HEIGHT),
             });
         }
-        let row = spaces.get(0).unwrap();
+        let row = &spaces[0];
         if row.is_empty() {
             return Err(BoardError::EmptyRows);
         }
@@ -230,6 +230,14 @@ impl Board {
             return Err(BoardError::MismatchedRowLengths);
         }
         Ok(Board(spaces))
+    }
+
+    pub fn height(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn width(&self) -> usize {
+        self.0[0].len()
     }
 
     pub fn get(&self) -> &Vec<Vec<BoardSpace>> {

@@ -17,21 +17,55 @@
 
       #page > .board {
         grid-area: board;
-        background-color: #8ca0ff;
-        align-self: center;
+        align-self: stretch;
         justify-self: center;
       }
 
-      #page > .board > .board-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        grid-template-rows: 1fr 1fr 1fr;
-      }
-
-      #page > .board > .board-grid > .board-space {
+      #page > .board > .board-grid > .empty {
         border: 1px solid;
         width: 32px;
         aspect-ratio: 1;
+      }
+
+      #page > .board > .board-grid > .wall {
+        border: 1px solid;
+        width: 32px;
+        aspect-ratio: 1;
+        background-color: #cccccc;
+      }
+
+      #page > .board > .board-grid > .p1.special {
+        border: 1px solid;
+        width: 32px;
+        aspect-ratio: 1;
+        background-color: #0000ff;
+      }
+
+      #page > .board > .board-grid > .p2.special {
+        border: 1px solid;
+        width: 32px;
+        aspect-ratio: 1;
+        background-color: #ff0000;
+      }
+
+      #page > .board > .board-grid > .p1.special.activated {
+        background-color: #eeeeff;
+      }
+
+      #page > .board > .board-grid > .p2.special.activated {
+        background-color: #ffeeee;
+      }
+
+      #page > .board > .board-grid > .p1.ink {
+        border: 1px solid;
+        width: 32px;
+        background-color: #8ca0ff;
+      }
+
+      #page > .board > .board-grid > .p2.ink {
+        border: 1px solid;
+        width: 32px;
+        background-color: #ffa08c;
       }
 
       #page > .choices {
@@ -59,8 +93,8 @@
 
       #page > .deck {
         grid-area: deck;
-        background-color: #8ceea0;
         align-self: center;
+        padding: 30px;
       }
 
       #page > .choices > .card {
