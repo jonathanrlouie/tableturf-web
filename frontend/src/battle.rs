@@ -14,42 +14,79 @@ pub struct CardProps {
 #[function_component(Battle)]
 pub fn battle() -> Html {
     let board = GameState::<DeckRng>::default().board().clone();
+    let e: CardSpace = None;
+    let i: CardSpace = Some(InkSpace::Normal);
+    let s: CardSpace = Some(InkSpace::Special);
+    let card1 = Card::new(
+        "Splattershot".to_string(),
+        8,
+        [
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+            [e, e, i, i, s, e, e, e],
+            [e, e, i, i, i, i, e, e],
+            [e, e, i, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+        ],
+        3,
+    );
+
+    let card2 = Card::new(
+        "Slosher".to_string(),
+        6,
+        [
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+            [e, e, i, e, e, e, e, e],
+            [e, e, e, s, i, e, e, e],
+            [e, e, i, i, i, e, e, e],
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+        ],
+        3,
+    );
+
+    let card3 = Card::new(
+        "Zapfish".to_string(),
+        9,
+        [
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, i, e, e],
+            [e, e, e, i, i, e, e, e],
+            [e, e, e, i, s, i, e, e],
+            [e, e, i, e, i, i, e, e],
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+        ],
+        4,
+    );
+    let card4 = Card::new(
+        "Blaster".to_string(),
+        8,
+        [
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+            [e, i, e, e, i, s, e, e],
+            [e, e, i, i, i, i, e, e],
+            [e, e, i, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+            [e, e, e, e, e, e, e, e],
+        ],
+        3,
+    );
     html! {
         <section id="page">
             <BoardComponent board={board}/>
             <div class={classes!("choices")}>
-                <div class={classes!("card")}>
-                    <div>{"Splattershot"}</div>
-                    <div class={classes!("card-grid")}>
-                        {"blah"}
-                    </div>
-                    <div>{"Priority: 6"}</div>
-                    <div>{"Special cost: 3"}</div>
-                </div>
-                <div class={classes!("card")}>
-                    <div>{"Flyfish"}</div>
-                    <div class={classes!("card-grid")}>
-                        {"Blah"}
-                    </div>
-                    <div>{"Priority: 13"}</div>
-                    <div>{"Special cost: 5"}</div>
-                </div>
-                <div class={classes!("card")}>
-                    <div>{"Splatterscope"}</div>
-                    <div class={classes!("card-grid")}>
-                        {"Blah"}
-                    </div>
-                    <div>{"Priority: 9"}</div>
-                    <div>{"Special cost: 3"}</div>
-                </div>
-                <div class={classes!("card")}>
-                    <div>{"Splat Bomb"}</div>
-                    <div class={classes!("card-grid")}>
-                        {"Blah"}
-                    </div>
-                    <div>{"Priority: 3"}</div>
-                    <div>{"Special cost: 1"}</div>
-                </div>
+                <CardComponent card={card1}/>
+                <CardComponent card={card2}/>
+                <CardComponent card={card3}/>
+                <CardComponent card={card4}/>
                 <button>{"Pass"}</button>
                 <button>{"Special"}</button>
             </div>
@@ -114,7 +151,7 @@ fn get_special_classes(player_num: &PlayerNum, is_activated: bool) -> Classes {
 
 #[function_component(CardComponent)]
 fn card(props: &CardProps) -> Html {
-    let card = props.card;
+    let card = &props.card;
     html! {
         <div class={classes!("card")}>
             <div>{card.name()}</div>
@@ -124,12 +161,12 @@ fn card(props: &CardProps) -> Html {
                 }
             </div>
             <div>{format!("Priority: {}", card.priority())}</div>
-            <div>{format!("Special cost: {}", card.cost())}</div>
+            <div>{format!("Special cost: {}", card.special())}</div>
         </div>
     }
 }
 
-fn view_card_space(space: CardSpace) -> Html {
+fn view_card_space(space: &CardSpace) -> Html {
     html! {
         <div class={classes!(match space {
             Some(InkSpace::Normal) => "normal",

@@ -101,18 +101,34 @@
         justify-self: center;
         align-self: center;
         padding: 10px;
+        border: 1px solid;
+        border-radius: 5px;
       }
 
       #page > .choices > .card > .card-grid {
         display: grid;
-        grid-template-rows: 1fr 1fr 1fr 1fr;
-        grid-template-columns: 1fr 1fr 1fr 1fr;
+        grid-template-rows: repeat(8, 1fr);
+        grid-template-columns: repeat(8, 1fr);
       }
 
-      #page > .choices > .card > .card-grid > .card-space {
+      #page > .choices > .card > .card-grid > .empty {
         border: 1px solid;
-        width: 32px;
+        width: 16px;
         aspect-ratio: 1;
+      }
+
+      #page > .choices > .card > .card-grid > .normal {
+        border: 1px solid;
+        width: 16px;
+        aspect-ratio: 1;
+        background-color: #cccccc;
+      }
+
+      #page > .choices > .card > .card-grid > .special {
+        border: 1px solid;
+        width: 16px;
+        aspect-ratio: 1;
+        background-color: #000000;
       }
     </style>
   </head>
