@@ -1,92 +1,99 @@
 use yew::prelude::*;
-use common::{Board, BoardSpace, Card, CardSpace, InkSpace, PlayerNum, DeckRng, GameState};
+use common::{Deck, Hand, HandIndex, Board, BoardSpace, Card, CardSpace, InkSpace, PlayerNum, DeckRng, GameState};
 
 #[derive(Properties, PartialEq)]
 pub struct BoardProps {
-    pub board: Board
+    pub board: Board,
+    pub handidx: HandIndex,
+    pub selectedcard: Card
 }
 
 #[derive(Properties, PartialEq)]
 pub struct CardProps {
-    pub card: Card
+    pub card: Card,
+    pub onclick: Callback<HandIndex>,
+    pub handidx: HandIndex,
+    pub selected: bool,
+}
+
+#[derive(Copy, Clone)]
+enum Phase {
+    Redraw,
+    WaitForRedraw,
+    Battle,
+    WaitForBattleInput,
+    GameEnd
+}
+
+#[derive(Clone)]
+struct BattleState {
+    hand: Hand,
+    deck: Deck,
+    hand_idx: HandIndex,
+    board: Board,
+    phase: Phase
 }
 
 #[function_component(Battle)]
 pub fn battle() -> Html {
-    let board = GameState::<DeckRng>::default().board().clone();
-    let e: CardSpace = None;
-    let i: CardSpace = Some(InkSpace::Normal);
-    let s: CardSpace = Some(InkSpace::Special);
-    let card1 = Card::new(
-        "Splattershot".to_string(),
-        8,
-        [
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-            [e, e, i, i, s, e, e, e],
-            [e, e, i, i, i, i, e, e],
-            [e, e, i, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-        ],
-        3,
-    );
-
-    let card2 = Card::new(
-        "Slosher".to_string(),
-        6,
-        [
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-            [e, e, i, e, e, e, e, e],
-            [e, e, e, s, i, e, e, e],
-            [e, e, i, i, i, e, e, e],
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-        ],
-        3,
-    );
-
-    let card3 = Card::new(
-        "Zapfish".to_string(),
-        9,
-        [
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, i, e, e],
-            [e, e, e, i, i, e, e, e],
-            [e, e, e, i, s, i, e, e],
-            [e, e, i, e, i, i, e, e],
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-        ],
-        4,
-    );
-    let card4 = Card::new(
-        "Blaster".to_string(),
-        8,
-        [
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-            [e, i, e, e, i, s, e, e],
-            [e, e, i, i, i, i, e, e],
-            [e, e, i, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-            [e, e, e, e, e, e, e, e],
-        ],
-        3,
-    );
+    let state = use_state(|| {
+        let game_state = GameState::<DeckRng>::default();
+        let player = game_state.player(PlayerNum::P1);
+        
+        BattleState {
+            hand: player.hand().clone(),
+            deck: player.deck().clone(),
+            hand_idx: HandIndex::H1,
+            board: game_state.board().clone(),
+            phase: Phase::Battle,
+        }
+    });
+    let onclick_card = {
+        let state = state.clone();
+        Callback::from(move |hand_idx| {
+            state.set(BattleState {
+                hand_idx,
+                ..(*state).clone()
+            });
+        })
+    };
+    let board = state.board.clone();
+    let hand = state.hand.clone();
+    let deck = state.deck.clone();
+    let (card1, _) = deck.index(hand[HandIndex::H1]);
+    let card1 = card1.clone();
+    let (card2, _) = deck.index(hand[HandIndex::H2]);
+    let card2 = card2.clone();
+    let (card3, _) = deck.index(hand[HandIndex::H3]);
+    let card3 = card3.clone();
+    let (card4, _) = deck.index(hand[HandIndex::H4]);
+    let card4 = card4.clone();
+    let (selected_card, _) = deck.index(hand[state.hand_idx]);
+    let selected_card = selected_card.clone();
     html! {
         <section id="page">
-            <BoardComponent board={board}/>
+            <BoardComponent board={board} handidx={state.hand_idx} selectedcard={selected_card}/>
             <div class={classes!("choices")}>
-                <CardComponent card={card1}/>
-                <CardComponent card={card2}/>
-                <CardComponent card={card3}/>
-                <CardComponent card={card4}/>
+                <CardComponent
+                    card={card1}
+                    onclick={onclick_card.clone()}
+                    handidx={HandIndex::H1}
+                    selected={state.hand_idx == HandIndex::H1}/>
+                <CardComponent
+                    card={card2}
+                    onclick={onclick_card.clone()}
+                    handidx={HandIndex::H2}
+                    selected={state.hand_idx == HandIndex::H2}/>
+                <CardComponent
+                    card={card3}
+                    onclick={onclick_card.clone()}
+                    handidx={HandIndex::H3}
+                    selected={state.hand_idx == HandIndex::H3}/>
+                <CardComponent
+                    card={card4}
+                    onclick={onclick_card.clone()}
+                    handidx={HandIndex::H4}
+                    selected={state.hand_idx == HandIndex::H4}/>
                 <button>{"Pass"}</button>
                 <button>{"Special"}</button>
             </div>
@@ -105,20 +112,45 @@ pub fn board(props: &BoardProps) -> Html {
     let width = props.board.width();
     let height = props.board.height();
     let spaces = props.board.get();
+    /*
+    let callback = Callback::from(move |x, y| {
+        sender.send(RawInput {
+            hand_idx: props.handidx,
+            action: Action::Place(RawPlacement {
+                x: x,
+                y: y,
+                special_activated: false,
+                rotation: Rotation::Zero
+            })
+        }).unwrap();
+    });
+    */
     html! {
         <div class={classes!("board")}>
             <div 
                 class={classes!("board-grid")}
                 style={format!("display: grid; grid-template-rows: repeat({}, 1fr); grid-template-columns: repeat({}, 1fr)", height, width)}>
                 {
-                    spaces.iter().flatten().map(|s| view_board_space(s)).collect::<Html>()
+                    spaces.iter().flatten()/*.enumerate()*/.map(|/*(idx, */s/*)*/| {
+                    /*
+                        let x = idx % width;
+                        let y = idx / width;
+                        board_space(x, y, s, callback)
+                    }).collect::<Html>()
+                    */
+                        board_space(s)}).collect::<Html>()
                 }
             </div>
         </div>
     }
 }
 
-fn view_board_space(space: &BoardSpace) -> Html {
+fn board_space(/*x: usize, y: usize, */space: &BoardSpace/*, callback: Callback<(i32, i32)>*/) -> Html {
+    /*
+    let onclick = Callback::from(move |_| {
+        callback.emit(x as i32, y as i32);
+    });
+    */
     html! {
         <div class={match space {
             BoardSpace::Empty => classes!("empty"),
@@ -130,7 +162,7 @@ fn view_board_space(space: &BoardSpace) -> Html {
             }
             BoardSpace::Wall => classes!("wall"),
             BoardSpace::OutOfBounds => classes!("oob"),
-        }}></div>
+        }} /*{onclick}*/></div>
     }
 }
 
@@ -152,21 +184,26 @@ fn get_special_classes(player_num: &PlayerNum, is_activated: bool) -> Classes {
 #[function_component(CardComponent)]
 fn card(props: &CardProps) -> Html {
     let card = &props.card;
+    let callback = props.onclick.clone();
+    let hand_idx = props.handidx;
+    let onclick = Callback::from(move |_| {
+        callback.emit(hand_idx);
+    });
     html! {
-        <div class={classes!("card")}>
+        <button class={if props.selected { classes!("card", "selected") } else { classes!("card") }} {onclick}>
             <div>{card.name()}</div>
             <div class={classes!("card-grid")}>
                 {
-                    card.spaces().iter().flatten().map(|s| view_card_space(s)).collect::<Html>()
+                    card.spaces().iter().flatten().map(|s| card_space(s)).collect::<Html>()
                 }
             </div>
             <div>{format!("Priority: {}", card.priority())}</div>
             <div>{format!("Special cost: {}", card.special())}</div>
-        </div>
+        </button>
     }
 }
 
-fn view_card_space(space: &CardSpace) -> Html {
+fn card_space(space: &CardSpace) -> Html {
     html! {
         <div class={classes!(match space {
             Some(InkSpace::Normal) => "normal",

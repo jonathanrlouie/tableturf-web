@@ -15,7 +15,7 @@ pub enum HandError {
     DuplicateCards([DeckIndex; HAND_SIZE]),
 }
 
-#[derive(Deserialize, Copy, Clone, Debug)]
+#[derive(Deserialize, Copy, Clone, Debug, PartialEq)]
 pub enum HandIndex {
     H1,
     H2,

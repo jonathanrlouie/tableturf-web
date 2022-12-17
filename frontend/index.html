@@ -101,8 +101,12 @@
         justify-self: center;
         align-self: center;
         padding: 10px;
-        border: 1px solid;
+        border: 2px solid;
         border-radius: 5px;
+      }
+
+      #page > .choices > .selected {
+        border-color: yellow;
       }
 
       #page > .choices > .card > .card-grid {
@@ -113,22 +117,26 @@
 
       #page > .choices > .card > .card-grid > .empty {
         border: 1px solid;
+        border-color: #cccccc;
         width: 16px;
         aspect-ratio: 1;
+        background-color: #333333;
       }
 
       #page > .choices > .card > .card-grid > .normal {
         border: 1px solid;
+        border-color: #cccccc;
         width: 16px;
         aspect-ratio: 1;
-        background-color: #cccccc;
+        background-color: yellow;
       }
 
       #page > .choices > .card > .card-grid > .special {
         border: 1px solid;
+        border-color: #cccccc;
         width: 16px;
         aspect-ratio: 1;
-        background-color: #000000;
+        background-color: orange;
       }
     </style>
   </head>
