@@ -1,5 +1,5 @@
 use crate::tableturf::board::{Board, BoardPosition, BoardPositionError, BoardSpace};
-use crate::tableturf::card::{Card, Grid, InkSpace, ROW_LEN};
+use crate::tableturf::card::{Card, Grid, InkSpace, CARD_WIDTH};
 use crate::tableturf::deck::HandIndex;
 use crate::tableturf::player::{Player, PlayerNum};
 use serde::Deserialize;
@@ -243,13 +243,13 @@ fn special_collision(inked_spaces: &[(BoardPosition, InkSpace)], board: &Board) 
 }
 
 fn rotate_grid_ccw(grid: &mut Grid) {
-    for i in 0..(ROW_LEN / 2) {
-        for j in i..(ROW_LEN - i - 1) {
+    for i in 0..(CARD_WIDTH / 2) {
+        for j in i..(CARD_WIDTH - i - 1) {
             let temp = grid[i][j];
-            grid[i][j] = grid[j][ROW_LEN - 1 - i];
-            grid[j][ROW_LEN - 1 - i] = grid[ROW_LEN - 1 - i][ROW_LEN - 1 - j];
-            grid[ROW_LEN - 1 - i][ROW_LEN - 1 - j] = grid[ROW_LEN - 1 - j][i];
-            grid[ROW_LEN - 1 - j][i] = temp;
+            grid[i][j] = grid[j][CARD_WIDTH - 1 - i];
+            grid[j][CARD_WIDTH - 1 - i] = grid[CARD_WIDTH - 1 - i][CARD_WIDTH - 1 - j];
+            grid[CARD_WIDTH - 1 - i][CARD_WIDTH - 1 - j] = grid[CARD_WIDTH - 1 - j][i];
+            grid[CARD_WIDTH - 1 - j][i] = temp;
         }
     }
 }

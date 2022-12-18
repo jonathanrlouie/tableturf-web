@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-pub const ROW_LEN: usize = 8;
+pub const CARD_WIDTH: usize = 8;
 
 #[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq)]
 pub enum InkSpace {
@@ -10,7 +10,7 @@ pub enum InkSpace {
 
 pub type CardSpace = Option<InkSpace>;
 
-pub type Grid = [[CardSpace; ROW_LEN]; ROW_LEN];
+pub type Grid = [[CardSpace; CARD_WIDTH]; CARD_WIDTH];
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Card {

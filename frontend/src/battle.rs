@@ -1,5 +1,6 @@
 use yew::prelude::*;
-use common::{Deck, Hand, HandIndex, Board, BoardSpace, Card, CardSpace, InkSpace, PlayerNum, DeckRng, GameState};
+use common::{CARD_WIDTH, Deck, Hand, HandIndex, Board, BoardSpace, Card, CardSpace, InkSpace, PlayerNum, DeckRng, GameState};
+use std::collections::HashSet;
 
 #[derive(Properties, PartialEq)]
 pub struct BoardProps {
@@ -33,6 +34,11 @@ struct BattleState {
     hand_idx: HandIndex,
     board: Board,
     phase: Phase
+}
+
+#[derive(Clone)]
+struct CursorState {
+    cursor: HashSet<(usize, usize)>
 }
 
 #[function_component(Battle)]
@@ -93,7 +99,8 @@ pub fn battle() -> Html {
                 board={board}
                 handidx={state.hand_idx}
                 selectedcard={selected_card}
-                onclick={onclick_space}/>
+                onclick={onclick_space}
+                />
             <div class={classes!("choices")}>
                 <CardComponent
                     card={card1}
@@ -130,9 +137,34 @@ pub fn battle() -> Html {
 
 #[function_component(BoardComponent)]
 pub fn board(props: &BoardProps) -> Html {
+    let state = use_state(|| CursorState { cursor: HashSet::new() });
     let width = props.board.width();
     let height = props.board.height();
     let spaces = props.board.spaces();
+    let onmouseover_space = {
+        let state = state.clone();
+        Callback::from(move |(x, y, card): (usize, usize, Card)| {
+            let mut cursor = HashSet::new();
+            let spaces = card.spaces();
+            let ink_spaces = spaces.iter()
+                .flatten()
+                .enumerate()
+                .filter(|(_, s)| s.is_some());
+            for (idx, _) in ink_spaces {
+                let card_x = idx % CARD_WIDTH;
+                let card_y = idx / CARD_WIDTH;
+                match (usize::checked_sub(x + card_x, 4), usize::checked_sub(y + card_y, 4)) {
+                    (Some(x), Some(y)) => {
+                        cursor.insert((x, y));
+                    }
+                    _ => ()
+                }
+            };
+            state.set(CursorState {
+                cursor 
+            });
+        })
+    };
     html! {
         <div class={classes!("board")}>
             <div 
@@ -142,7 +174,14 @@ pub fn board(props: &BoardProps) -> Html {
                     spaces.iter().enumerate().map(|(idx, s)| {
                         let x = idx % width;
                         let y = idx / width;
-                        board_space((x, y), s, props.onclick.clone())
+                        board_space(
+                            (x, y),
+                            &(*state).cursor,
+                            s,
+                            props.onclick.clone(),
+                            onmouseover_space.clone(),
+                            props.selectedcard.clone()
+                        )
                     }).collect::<Html>()
                 }
             </div>
@@ -150,22 +189,39 @@ pub fn board(props: &BoardProps) -> Html {
     }
 }
 
-fn board_space(position: (usize, usize), space: &BoardSpace, callback: Callback<(usize, usize)>) -> Html {
+fn board_space(
+    position: (usize, usize),
+    cursor: &HashSet<(usize, usize)>,
+    space: &BoardSpace,
+    onclick_space: Callback<(usize, usize)>,
+    onmouseover_space: Callback<(usize, usize, Card)>,
+    selected_card: Card,
+) -> Html {
     let onclick = Callback::from(move |_| {
-        callback.emit(position);
+        onclick_space.emit(position);
     });
+    let onmouseover = Callback::from(move |_| {
+        onmouseover_space.emit((position.0, position.1, selected_card.clone()));
+    });
+    let mut space_class = match space {
+        BoardSpace::Empty => classes!("empty"),
+        BoardSpace::Ink { player_num } => {
+            classes!(get_player_num_class(player_num), "ink")
+        }
+        BoardSpace::Special { player_num, is_activated } => {
+            get_special_classes(player_num, *is_activated)
+        }
+        BoardSpace::Wall => classes!("wall"),
+        BoardSpace::OutOfBounds => classes!("oob"),
+    };
+    let classes = if cursor.contains(&position) { 
+        space_class.extend(classes!("board-cursor").into_iter());
+        space_class
+    } else {
+        space_class
+    };
     html! {
-        <div class={match space {
-            BoardSpace::Empty => classes!("empty"),
-            BoardSpace::Ink { player_num } => {
-                classes!(get_player_num_class(player_num), "ink")
-            }
-            BoardSpace::Special { player_num, is_activated } => {
-                get_special_classes(player_num, *is_activated)
-            }
-            BoardSpace::Wall => classes!("wall"),
-            BoardSpace::OutOfBounds => classes!("oob"),
-        }} {onclick}></div>
+        <div class={classes} {onclick} {onmouseover}></div>
     }
 }
 
