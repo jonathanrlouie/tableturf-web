@@ -21,55 +21,57 @@
         justify-self: center;
       }
 
-      #page > .board > .board-grid > .empty {
+      #page > .board > .board-grid > .bordered {
         border: 1px solid;
+      }
+
+      #page > .board > .board-grid > .empty {
         width: 20px;
         aspect-ratio: 1;
       }
 
       #page > .board > .board-grid > .wall {
-        border: 1px solid;
         width: 20px;
         aspect-ratio: 1;
         background-color: #cccccc;
       }
 
       #page > .board > .board-grid > .p1.special {
-        border: 1px solid;
         width: 20px;
         aspect-ratio: 1;
-        background-color: #0000ff;
+        background-color: orange;
       }
 
       #page > .board > .board-grid > .p2.special {
-        border: 1px solid;
         width: 20px;
         aspect-ratio: 1;
-        background-color: #ff0000;
+        background-color: #00ffff;
       }
 
       #page > .board > .board-grid > .p1.special.activated {
-        background-color: #eeeeff;
+        background-color: red;
       }
 
       #page > .board > .board-grid > .p2.special.activated {
-        background-color: #ffeeee;
+        background-color: blue;
       }
 
       #page > .board > .board-grid > .p1.ink {
         border: 1px solid;
         width: 20px;
-        background-color: #8ca0ff;
+        background-color: yellow;
       }
 
       #page > .board > .board-grid > .p2.ink {
         border: 1px solid;
         width: 20px;
-        background-color: #ffa08c;
+        background-color: #1e90ff;
       }
 
-      #page > .board > .board-grid > .board-cursor {
-        background-color: yellow;
+      #page > .board > .board-grid > .board-space > .board-cursor {
+        width: 100%;
+        height: 100%;
+        background-color: #00ff0055;
       }
 
       #page > .choices {

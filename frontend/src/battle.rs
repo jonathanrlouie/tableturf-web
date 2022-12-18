@@ -203,25 +203,30 @@ fn board_space(
     let onmouseover = Callback::from(move |_| {
         onmouseover_space.emit((position.0, position.1, selected_card.clone()));
     });
-    let mut space_class = match space {
-        BoardSpace::Empty => classes!("empty"),
+    let mut class = match space {
+        BoardSpace::Empty => classes!("bordered", "empty"),
         BoardSpace::Ink { player_num } => {
-            classes!(get_player_num_class(player_num), "ink")
+            classes!(get_player_num_class(player_num), "ink", "bordered")
         }
         BoardSpace::Special { player_num, is_activated } => {
             get_special_classes(player_num, *is_activated)
         }
-        BoardSpace::Wall => classes!("wall"),
+        BoardSpace::Wall => classes!("wall", "bordered"),
         BoardSpace::OutOfBounds => classes!("oob"),
     };
-    let classes = if cursor.contains(&position) { 
-        space_class.extend(classes!("board-cursor").into_iter());
-        space_class
-    } else {
-        space_class
-    };
+    class.extend(classes!("board-space"));
     html! {
-        <div class={classes} {onclick} {onmouseover}></div>
+        <div class={class} {onclick} {onmouseover}>
+            {
+                if cursor.contains(&position) {
+                    html! {
+                        <div class={classes!("board-cursor")}></div>
+                    }
+                } else {
+                    html! {}
+                }
+            }
+        </div>
     }
 }
 
@@ -234,9 +239,9 @@ fn get_player_num_class(player_num: &PlayerNum) -> String {
 
 fn get_special_classes(player_num: &PlayerNum, is_activated: bool) -> Classes {
     if is_activated {
-        classes!(get_player_num_class(player_num), "special", "activated")
+        classes!(get_player_num_class(player_num), "special", "activated", "bordered")
     } else {
-        classes!(get_player_num_class(player_num), "special")
+        classes!(get_player_num_class(player_num), "special", "bordered")
     }
 } 
 
