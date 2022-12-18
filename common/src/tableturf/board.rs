@@ -52,18 +52,12 @@ impl fmt::Display for Coordinate {
 pub enum BoardPositionError {
     #[error("{0} coordinate {1} exceeds board {2}")]
     OutOfBounds(Coordinate, usize, Dimension),
-    #[error("{0} coordinate {1} could not be converted from usize to i32")]
-    CoordinateToInt(Coordinate, usize),
-    #[error("{0} offset {1} could not be converted from usize to i32")]
-    OffsetToInt(Coordinate, usize),
     #[error("Final {coordinate} coordinate with base {base} and offset {offset} overflowed")]
     Overflow {
         coordinate: Coordinate,
-        base: i32,
-        offset: i32,
+        base: usize,
+        offset: usize,
     },
-    #[error("{0} coordinate {1} could not be converted from i32 to usize")]
-    CoordinateToUsize(Coordinate, i32),
 }
 
 #[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq)]
@@ -115,10 +109,9 @@ impl BoardPosition {
     // Ensure that the given position meets the following criteria:
     // - x coordinate does not exceed Board row length
     // - y coordinate does not exceed Board column height
-    // - x and y coordinates can be converted into i32s safely
     pub fn new(board: &Board, x: usize, y: usize) -> Result<Self, BoardPositionError> {
-        let width = board.get()[0].len();
-        let height = board.get().len();
+        let width = board.width();
+        let height = board.height();
         if x >= width {
             return Err(BoardPositionError::OutOfBounds(
                 Coordinate::X,
@@ -133,13 +126,6 @@ impl BoardPosition {
                 Dimension::Height(height),
             ));
         }
-        // Ensure that x and y can be safely converted into i32s later
-        let _: i32 = x
-            .try_into()
-            .map_err(|_| BoardPositionError::CoordinateToInt(Coordinate::X, x))?;
-        let _: i32 = y
-            .try_into()
-            .map_err(|_| BoardPositionError::CoordinateToInt(Coordinate::Y, y))?;
         Ok(BoardPosition(x, y))
     }
 
@@ -153,16 +139,51 @@ impl BoardPosition {
 
     // Get the spaces surrounding the given position
     pub fn surrounding_spaces(&self, board: &Board) -> [BoardSpace; 8] {
-        let x = self.x() as i32;
-        let y = self.y() as i32;
-        let nw_space = board.get_space(x - 1, y - 1);
-        let n_space = board.get_space(x, y - 1);
-        let ne_space = board.get_space(x + 1, y - 1);
-        let w_space = board.get_space(x - 1, y);
-        let e_space = board.get_space(x + 1, y);
-        let sw_space = board.get_space(x - 1, y + 1);
-        let s_space = board.get_space(x, y + 1);
-        let se_space = board.get_space(x + 1, y + 1);
+        let x = self.0;
+        let y = self.1;
+        let x_minus_1 = usize::checked_sub(x, 1);
+        let y_minus_1 = usize::checked_sub(y, 1);
+        let x_plus_1 = usize::checked_add(x, 1);
+        let y_plus_1 = usize::checked_add(y, 1);
+        let nw_space = match (x_minus_1, y_minus_1) {
+            (Some(x), Some(y)) => board.get_space(x, y),
+            _ => BoardSpace::OutOfBounds
+        };
+
+        let n_space = match y_minus_1 {
+            Some(y) => board.get_space(x, y),
+            None => BoardSpace::OutOfBounds
+        };
+
+        let ne_space = match (x_plus_1, y_minus_1) {
+            (Some(x), Some(y)) => board.get_space(x, y),
+            _ => BoardSpace::OutOfBounds
+        };
+
+        let w_space = match x_minus_1 {
+            Some(x) => board.get_space(x, y),
+            None => BoardSpace::OutOfBounds
+        };
+
+        let e_space = match x_plus_1 {
+            Some(x) => board.get_space(x, y),
+            None => BoardSpace::OutOfBounds
+        };
+
+        let sw_space = match (x_minus_1, y_plus_1) {
+            (Some(x), Some(y)) => board.get_space(x, y),
+            _ => BoardSpace::OutOfBounds
+        };
+
+        let s_space = match y_plus_1 {
+            Some(y) => board.get_space(x, y),
+            None => BoardSpace::OutOfBounds
+        };
+
+        let se_space = match (x_plus_1, y_plus_1) {
+            (Some(x), Some(y)) => board.get_space(x, y),
+            _ => BoardSpace::OutOfBounds
+        };
 
         [
             nw_space, n_space, ne_space, w_space, e_space, sw_space, s_space, se_space,
@@ -193,10 +214,18 @@ impl BoardPosition {
 pub const MAX_BOARD_WIDTH: usize = 26;
 pub const MAX_BOARD_HEIGHT: usize = 26;
 
-// This cannot be an array, because custom boards might be loaded at runtime
-// TODO: Optimise this code by flattening the Vectors
+// This cannot be an array, because custom boards might be loaded at runtime.
+// Note that boards are padded due to some cards being difficult to place at
+// the boundaries of the board.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct Board(Vec<Vec<BoardSpace>>);
+pub struct Board {
+    width: usize,
+    height: usize,
+    spaces: Vec<BoardSpace>
+}
+
+const PADDING: usize = 7;
+const DOUBLE_PADDING: usize = PADDING * 2;
 
 impl Board {
     // Ensure that the given board meets the following criteria:
@@ -205,13 +234,15 @@ impl Board {
     // - column height does not exceed the max board height
     // - board contains at least one row
     // - rows contain at least one space
+    // spaces is an unpadded board
     pub fn new(spaces: Vec<Vec<BoardSpace>>) -> Result<Self, BoardError> {
         if spaces.is_empty() {
             return Err(BoardError::NoRows);
         }
-        if spaces.len() > MAX_BOARD_HEIGHT {
+        let height = spaces.len();
+        if height > MAX_BOARD_HEIGHT {
             return Err(BoardError::TooLarge {
-                dimension: Dimension::Height(spaces.len()),
+                dimension: Dimension::Height(height),
                 max: Dimension::Height(MAX_BOARD_HEIGHT),
             });
         }
@@ -219,46 +250,53 @@ impl Board {
         if row.is_empty() {
             return Err(BoardError::EmptyRows);
         }
-        let row_len = row.len();
-        if row_len > MAX_BOARD_WIDTH {
+        let width = row.len();
+        if width > MAX_BOARD_WIDTH {
             return Err(BoardError::TooLarge {
-                dimension: Dimension::Width(row_len),
+                dimension: Dimension::Width(width),
                 max: Dimension::Width(MAX_BOARD_WIDTH),
             });
         }
-        if spaces.iter().any(|row| row.len() != row_len) {
+        if spaces.iter().any(|row| row.len() != width) {
             return Err(BoardError::MismatchedRowLengths);
         }
-        Ok(Board(spaces))
-    }
 
-    pub fn height(&self) -> usize {
-        self.0.len()
+        // Need to add padding because some cards may be too difficult to place at board edges
+        let start_padding = (0..(width + DOUBLE_PADDING) * PADDING).map(|_| BoardSpace::OutOfBounds);
+        let end_padding = start_padding.clone();
+        let padded_rows = spaces.iter().map(|row| pad_row(row.iter().cloned())).flatten();
+        let padded_spaces = start_padding.chain(padded_rows).chain(end_padding);
+        Ok(Board {
+            width: width + DOUBLE_PADDING,
+            height: height + DOUBLE_PADDING,
+            spaces: padded_spaces.collect()
+        })
     }
 
     pub fn width(&self) -> usize {
-        self.0[0].len()
+        self.width
     }
 
-    pub fn get(&self) -> &Vec<Vec<BoardSpace>> {
-        &self.0
+    pub fn height(&self) -> usize {
+        self.height
     }
 
-    pub fn get_mut(&mut self) -> &mut Vec<Vec<BoardSpace>> {
-        &mut self.0
+    pub fn spaces(&self) -> &Vec<BoardSpace> {
+        &self.spaces
     }
 
-    // Need to take signed integers because we may need to check out-of-bounds
-    pub fn get_space(&self, x: i32, y: i32) -> BoardSpace {
+    pub fn set_space(&mut self, position: &BoardPosition, space: BoardSpace) {
+        self.spaces[position.y() * self.width + position.x()] = space;
+    }
+
+    pub fn get_space(&self, x: usize, y: usize) -> BoardSpace {
         self.try_get_space(x, y).unwrap_or(BoardSpace::OutOfBounds)
     }
 
-    fn try_get_space(&self, x: i32, y: i32) -> Option<BoardSpace> {
-        let x = usize::try_from(x).ok()?;
-        let y = usize::try_from(y).ok()?;
-
-        let row = self.0.get(y)?;
-        let space = row.get(x)?;
+    fn try_get_space(&self, x: usize, y: usize) -> Option<BoardSpace> {
+        let temp = usize::checked_mul(y, self.width)?;
+        let idx = usize::checked_add(temp, x)?;
+        let space = self.spaces.get(idx)?;
         Some(*space)
     }
 
@@ -266,34 +304,39 @@ impl Board {
         &self,
         player_num: PlayerNum,
     ) -> Vec<(BoardPosition, BoardSpace)> {
-        self.0
+        self.spaces
             .iter()
             .enumerate()
-            .flat_map(|(y, r)| {
-                r.iter()
-                    .enumerate()
-                    .filter(move |(x, s)| {
-                        let board_pos = BoardPosition::new(self, *x, y).unwrap();
-                        s.is_inactive_special(player_num) && board_pos.is_surrounded(self)
-                    })
-                    .map(move |(x, s)| (BoardPosition::new(self, x, y).unwrap(), *s))
-            })
+            .filter_map(move |(idx, s)| self.get_surrounded_inactive_special(player_num, idx, *s))
             .collect()
+    }
+
+    fn get_surrounded_inactive_special(
+        &self,
+        player_num: PlayerNum,
+        idx: usize,
+        space: BoardSpace
+    ) -> Option<(BoardPosition, BoardSpace)> {
+        let x = idx % self.width;
+        let y = idx / self.width;
+        let board_pos = BoardPosition::new(self, x, y).unwrap();
+        if space.is_inactive_special(player_num) && board_pos.is_surrounded(self) {
+            Some((board_pos, space))
+        } else {
+            None
+        }
     }
 
     pub fn set_ink(&mut self, ink_spaces: Vec<(BoardPosition, BoardSpace)>) {
         for (bp, s) in ink_spaces {
-            (self.0)[bp.y() as usize][bp.x() as usize] = s;
+            self.set_space(&bp, s);
         }
     }
 
     pub fn count_inked_spaces(&self, player_num: PlayerNum) -> u32 {
-        self.get().iter().fold(0, |acc, row| {
-            acc + row
-                .iter()
-                .filter(|s| s.is_ink(player_num))
-                .fold(0, |acc, _| acc + 1)
-        })
+        self.spaces.iter()
+            .filter(|s| s.is_ink(player_num))
+            .fold(0, |acc, _| acc + 1)
     }
 
     // Calculate the absolute board position for a given base position and offsets
@@ -303,34 +346,27 @@ impl Board {
         x_offset: usize,
         // The number of spaces down from the board_y base position
         y_offset: usize,
-        board_x: i32,
-        board_y: i32,
+        board_x: usize,
+        board_y: usize,
     ) -> Result<BoardPosition, BoardPositionError> {
-        // The conversion errors don't provide any useful info, so we can discard them
-        let x_offset: i32 = x_offset
-            .try_into()
-            .map_err(|_| BoardPositionError::OffsetToInt(Coordinate::X, x_offset))?;
-        let y_offset: i32 = y_offset
-            .try_into()
-            .map_err(|_| BoardPositionError::OffsetToInt(Coordinate::Y, y_offset))?;
-        let x = i32::checked_add(board_x, x_offset).ok_or(BoardPositionError::Overflow {
+        let x = usize::checked_add(board_x, x_offset).ok_or(BoardPositionError::Overflow {
             coordinate: Coordinate::X,
             base: board_x,
             offset: x_offset,
         })?;
-        let y = i32::checked_add(board_y, y_offset).ok_or(BoardPositionError::Overflow {
+        let y = usize::checked_add(board_y, y_offset).ok_or(BoardPositionError::Overflow {
             coordinate: Coordinate::Y,
             base: board_y,
             offset: y_offset,
         })?;
-        let x: usize = x
-            .try_into()
-            .map_err(|_| BoardPositionError::CoordinateToUsize(Coordinate::X, x))?;
-        let y: usize = y
-            .try_into()
-            .map_err(|_| BoardPositionError::CoordinateToUsize(Coordinate::Y, y))?;
         BoardPosition::new(self, x, y)
     }
+}
+
+fn pad_row(row: impl Iterator<Item = BoardSpace>) -> impl Iterator<Item = BoardSpace> {
+    let initial_padding = (0..PADDING).map(|_| BoardSpace::OutOfBounds);
+    let end_padding = initial_padding.clone();
+    initial_padding.chain(row).chain(end_padding)
 }
 
 #[cfg(test)]
@@ -506,13 +542,13 @@ mod tests {
     fn test_construct_board_position() {
         let empty = BoardSpace::Empty;
         let board = Board::new(vec![vec![empty, empty], vec![empty, empty]]).unwrap();
-        let outside_row = BoardPosition::new(&board, 2, 0);
+        let outside_row = BoardPosition::new(&board, 16, 7);
         assert!(outside_row.is_err());
-        let outside_col = BoardPosition::new(&board, 0, 2);
+        let outside_col = BoardPosition::new(&board, 7, 16);
         assert!(outside_col.is_err());
-        let outside_row_and_col = BoardPosition::new(&board, 2, 2);
+        let outside_row_and_col = BoardPosition::new(&board, 16, 16);
         assert!(outside_row_and_col.is_err());
-        let valid_pos = BoardPosition::new(&board, 1, 1);
+        let valid_pos = BoardPosition::new(&board, 15, 15);
         assert!(valid_pos.is_ok());
     }
 
@@ -521,7 +557,7 @@ mod tests {
         let oob = BoardSpace::OutOfBounds;
         let empty = BoardSpace::Empty;
         let board = Board::new(vec![vec![empty, empty], vec![empty, empty]]).unwrap();
-        let spaces = BoardPosition::new(&board, 0, 0)
+        let spaces = BoardPosition::new(&board, 7, 7)
             .unwrap()
             .surrounding_spaces(&board);
         assert_eq!(spaces[0], oob);
@@ -544,9 +580,9 @@ mod tests {
             vec![empty, empty, empty],
         ])
         .unwrap();
-        let surrounded_pos = BoardPosition::new(&board, 0, 0).unwrap();
+        let surrounded_pos = BoardPosition::new(&board, 7, 7).unwrap();
         assert!(surrounded_pos.is_surrounded(&board));
-        let not_surrounded_pos = BoardPosition::new(&board, 1, 0).unwrap();
+        let not_surrounded_pos = BoardPosition::new(&board, 8, 7).unwrap();
         assert!(!not_surrounded_pos.is_surrounded(&board));
     }
 
@@ -569,11 +605,11 @@ mod tests {
             vec![empty, empty, empty],
         ])
         .unwrap();
-        let pos1 = BoardPosition::new(&board, 0, 0).unwrap();
+        let pos1 = BoardPosition::new(&board, 7, 7).unwrap();
         assert!(pos1.adjacent_to_ink(&board, PlayerNum::P1));
-        let pos2 = BoardPosition::new(&board, 0, 2).unwrap();
+        let pos2 = BoardPosition::new(&board, 7, 9).unwrap();
         assert!(!pos2.adjacent_to_ink(&board, PlayerNum::P1));
-        let pos3 = BoardPosition::new(&board, 2, 2).unwrap();
+        let pos3 = BoardPosition::new(&board, 9, 9).unwrap();
         assert!(pos3.adjacent_to_ink(&board, PlayerNum::P1));
     }
 
@@ -600,13 +636,13 @@ mod tests {
             vec![empty, p2_special, empty],
         ])
         .unwrap();
-        let pos1 = BoardPosition::new(&board, 0, 0).unwrap();
+        let pos1 = BoardPosition::new(&board, 7, 7).unwrap();
         assert!(!pos1.adjacent_to_special(&board, PlayerNum::P1));
-        let pos2 = BoardPosition::new(&board, 0, 2).unwrap();
+        let pos2 = BoardPosition::new(&board, 7, 9).unwrap();
         assert!(!pos2.adjacent_to_special(&board, PlayerNum::P1));
-        let pos3 = BoardPosition::new(&board, 2, 2).unwrap();
+        let pos3 = BoardPosition::new(&board, 9, 9).unwrap();
         assert!(pos3.adjacent_to_special(&board, PlayerNum::P1));
-        let pos4 = BoardPosition::new(&board, 1, 0).unwrap();
+        let pos4 = BoardPosition::new(&board, 8, 7).unwrap();
         assert!(pos4.adjacent_to_special(&board, PlayerNum::P1));
     }
 
@@ -631,8 +667,8 @@ mod tests {
             Board::new(vec![vec![p1_special, p1_ink], vec![p1_ink, p1_ink]]).unwrap();
         let one_special = special_surrounded.get_surrounded_inactive_specials(PlayerNum::P1);
         assert_eq!(one_special.len(), 1);
-        assert_eq!(one_special[0].0.x(), 0);
-        assert_eq!(one_special[0].0.y(), 0);
+        assert_eq!(one_special[0].0.x(), 7);
+        assert_eq!(one_special[0].0.y(), 7);
 
         let off_by_one_board =
             Board::new(vec![vec![p1_special, p1_ink], vec![p1_ink, empty]]).unwrap();
@@ -643,17 +679,17 @@ mod tests {
             Board::new(vec![vec![p1_special, p1_ink], vec![p1_ink, p2_ink]]).unwrap();
         let one_special = enemy_ink_board.get_surrounded_inactive_specials(PlayerNum::P1);
         assert_eq!(one_special.len(), 1);
-        assert_eq!(one_special[0].0.x(), 0);
-        assert_eq!(one_special[0].0.y(), 0);
+        assert_eq!(one_special[0].0.x(), 7);
+        assert_eq!(one_special[0].0.y(), 7);
 
         let multiple_specials_board =
             Board::new(vec![vec![p1_special, p1_ink], vec![p1_ink, p1_special]]).unwrap();
         let two_specials = multiple_specials_board.get_surrounded_inactive_specials(PlayerNum::P1);
         assert_eq!(two_specials.len(), 2);
-        assert_eq!(two_specials[0].0.x(), 0);
-        assert_eq!(two_specials[0].0.y(), 0);
-        assert_eq!(two_specials[1].0.x(), 1);
-        assert_eq!(two_specials[1].0.y(), 1);
+        assert_eq!(two_specials[0].0.x(), 7);
+        assert_eq!(two_specials[0].0.y(), 7);
+        assert_eq!(two_specials[1].0.x(), 8);
+        assert_eq!(two_specials[1].0.y(), 8);
     }
 
     #[test]
@@ -690,14 +726,11 @@ mod tests {
     fn test_get_absolute_position() {
         let empty = BoardSpace::Empty;
         let board = Board::new(vec![vec![empty, empty], vec![empty, empty]]).unwrap();
-        let valid_pos = board.get_absolute_position(7, 7, -7, -7);
+        let valid_pos = board.get_absolute_position(7, 7, 0, 0);
         assert!(valid_pos.is_ok());
         assert_eq!(
             valid_pos.unwrap(),
-            BoardPosition::new(&board, 0, 0).unwrap()
+            BoardPosition::new(&board, 7, 7).unwrap()
         );
-
-        let invalid_pos = board.get_absolute_position(7, 7, -8, -8);
-        assert!(invalid_pos.is_err());
     }
 }

@@ -5,7 +5,8 @@ use common::{Deck, Hand, HandIndex, Board, BoardSpace, Card, CardSpace, InkSpace
 pub struct BoardProps {
     pub board: Board,
     pub handidx: HandIndex,
-    pub selectedcard: Card
+    pub selectedcard: Card,
+    pub onclick: Callback<(usize, usize)>,
 }
 
 #[derive(Properties, PartialEq)]
@@ -57,6 +58,22 @@ pub fn battle() -> Html {
             });
         })
     };
+    let onclick_space = {
+        let state = state.clone();
+        Callback::from(move |(x, y)| {
+            /*
+            state.sender.send(RawInput {
+                hand_idx: props.handidx,
+                action: Action::Place(RawPlacement {
+                    x: x,
+                    y: y,
+                    special_activated: false,
+                    rotation: Rotation::Zero
+                })
+            }).unwrap();
+            */
+        })
+    };
     let board = state.board.clone();
     let hand = state.hand.clone();
     let deck = state.deck.clone();
@@ -72,7 +89,11 @@ pub fn battle() -> Html {
     let selected_card = selected_card.clone();
     html! {
         <section id="page">
-            <BoardComponent board={board} handidx={state.hand_idx} selectedcard={selected_card}/>
+            <BoardComponent
+                board={board}
+                handidx={state.hand_idx}
+                selectedcard={selected_card}
+                onclick={onclick_space}/>
             <div class={classes!("choices")}>
                 <CardComponent
                     card={card1}
@@ -111,46 +132,28 @@ pub fn battle() -> Html {
 pub fn board(props: &BoardProps) -> Html {
     let width = props.board.width();
     let height = props.board.height();
-    let spaces = props.board.get();
-    /*
-    let callback = Callback::from(move |x, y| {
-        sender.send(RawInput {
-            hand_idx: props.handidx,
-            action: Action::Place(RawPlacement {
-                x: x,
-                y: y,
-                special_activated: false,
-                rotation: Rotation::Zero
-            })
-        }).unwrap();
-    });
-    */
+    let spaces = props.board.spaces();
     html! {
         <div class={classes!("board")}>
             <div 
                 class={classes!("board-grid")}
                 style={format!("display: grid; grid-template-rows: repeat({}, 1fr); grid-template-columns: repeat({}, 1fr)", height, width)}>
                 {
-                    spaces.iter().flatten()/*.enumerate()*/.map(|/*(idx, */s/*)*/| {
-                    /*
+                    spaces.iter().enumerate().map(|(idx, s)| {
                         let x = idx % width;
                         let y = idx / width;
-                        board_space(x, y, s, callback)
+                        board_space((x, y), s, props.onclick.clone())
                     }).collect::<Html>()
-                    */
-                        board_space(s)}).collect::<Html>()
                 }
             </div>
         </div>
     }
 }
 
-fn board_space(/*x: usize, y: usize, */space: &BoardSpace/*, callback: Callback<(i32, i32)>*/) -> Html {
-    /*
+fn board_space(position: (usize, usize), space: &BoardSpace, callback: Callback<(usize, usize)>) -> Html {
     let onclick = Callback::from(move |_| {
-        callback.emit(x as i32, y as i32);
+        callback.emit(position);
     });
-    */
     html! {
         <div class={match space {
             BoardSpace::Empty => classes!("empty"),
@@ -162,7 +165,7 @@ fn board_space(/*x: usize, y: usize, */space: &BoardSpace/*, callback: Callback<
             }
             BoardSpace::Wall => classes!("wall"),
             BoardSpace::OutOfBounds => classes!("oob"),
-        }} /*{onclick}*/></div>
+        }} {onclick}></div>
     }
 }
 

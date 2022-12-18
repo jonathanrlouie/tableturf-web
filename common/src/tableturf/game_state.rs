@@ -507,10 +507,10 @@ fn update_special_gauge(player: &mut Player, player_num: PlayerNum, board: &mut 
     let special_spaces = board.get_surrounded_inactive_specials(player_num);
     // activate surrounded special spaces
     for (bp, _) in &special_spaces {
-        board.get_mut()[bp.y()][bp.x()] = BoardSpace::Special {
+        board.set_space(bp, BoardSpace::Special {
             player_num,
             is_activated: true,
-        }
+        });
     }
     player.special += special_spaces.len() as u32;
 }
@@ -674,7 +674,7 @@ mod tests {
             vec![p2_special, empty, p1_ink],
         ])
         .unwrap();
-        let spaces = board_pos(&board, 1, 1).surrounding_spaces(&board);
+        let spaces = board_pos(&board, 8, 8).surrounding_spaces(&board);
         assert_eq!(spaces[0], empty);
         assert_eq!(spaces[1], p1_ink);
         assert_eq!(spaces[2], p2_ink);
@@ -684,7 +684,7 @@ mod tests {
         assert_eq!(spaces[6], empty);
         assert_eq!(spaces[7], p1_ink);
 
-        let spaces = board_pos(&board, 0, 0).surrounding_spaces(&board);
+        let spaces = board_pos(&board, 7, 7).surrounding_spaces(&board);
         assert_eq!(spaces[0], oob);
         assert_eq!(spaces[1], oob);
         assert_eq!(spaces[2], oob);
@@ -722,8 +722,8 @@ mod tests {
         let mut game_state = GameState::new(board, [player1, player2], 12, MockRng1);
 
         let raw_placement = RawPlacement {
-            x: -2,
-            y: -2,
+            x: 5,
+            y: 5,
             special_activated: false,
             rotation: Rotation::Zero,
         };
@@ -773,14 +773,14 @@ mod tests {
         let mut game_state1 = game_state1();
 
         let raw_placement1 = RawPlacement {
-            x: -2,
-            y: -2,
+            x: 5,
+            y: 5,
             special_activated: false,
             rotation: Rotation::Zero,
         };
         let raw_placement2 = RawPlacement {
-            x: -2,
-            y: -2,
+            x: 5,
+            y: 5,
             special_activated: false,
             rotation: Rotation::Zero,
         };
@@ -819,14 +819,14 @@ mod tests {
         let board_offset = &game_state_offset.board;
 
         let raw_placement1 = RawPlacement {
-            x: -2,
-            y: -2,
+            x: 5,
+            y: 5,
             special_activated: false,
             rotation: Rotation::Zero,
         };
         let raw_placement2 = RawPlacement {
-            x: -1,
-            y: -2,
+            x: 6,
+            y: 5,
             special_activated: false,
             rotation: Rotation::Zero,
         };
@@ -864,14 +864,14 @@ mod tests {
         let mut game_state2 = game_state2();
 
         let raw_placement1 = RawPlacement {
-            x: -2,
-            y: -2,
+            x: 5,
+            y: 5,
             special_activated: false,
             rotation: Rotation::Zero,
         };
         let raw_placement2 = RawPlacement {
-            x: -2,
-            y: -3,
+            x: 5,
+            y: 4,
             special_activated: false,
             rotation: Rotation::Zero,
         };
@@ -918,28 +918,28 @@ mod tests {
         ])
         .unwrap();
         let overlap = vec![
-            (board_pos(&board, 0, 0), InkSpace::Normal, InkSpace::Normal),
+            (board_pos(&board, 7, 7), InkSpace::Normal, InkSpace::Normal),
             (
-                board_pos(&board, 1, 0),
+                board_pos(&board, 8, 7),
                 InkSpace::Special,
                 InkSpace::Special,
             ),
-            (board_pos(&board, 2, 0), InkSpace::Special, InkSpace::Normal),
-            (board_pos(&board, 0, 1), InkSpace::Normal, InkSpace::Special),
+            (board_pos(&board, 9, 7), InkSpace::Special, InkSpace::Normal),
+            (board_pos(&board, 7, 8), InkSpace::Normal, InkSpace::Special),
         ];
         let result = resolve_overlap(overlap, BoardSpace::Wall, BoardSpace::Wall);
         let expected = vec![
-            (board_pos(&board, 0, 0), BoardSpace::Wall),
-            (board_pos(&board, 1, 0), BoardSpace::Wall),
+            (board_pos(&board, 7, 7), BoardSpace::Wall),
+            (board_pos(&board, 8, 7), BoardSpace::Wall),
             (
-                board_pos(&board, 2, 0),
+                board_pos(&board, 9, 7),
                 BoardSpace::Special {
                     player_num: PlayerNum::P1,
                     is_activated: false,
                 },
             ),
             (
-                board_pos(&board, 0, 1),
+                board_pos(&board, 7, 8),
                 BoardSpace::Special {
                     player_num: PlayerNum::P2,
                     is_activated: false,
@@ -1106,8 +1106,8 @@ mod tests {
             RawInput {
                 hand_idx: HandIndex::H1,
                 action: Action::Place(RawPlacement {
-                    x: -2,
-                    y: -2,
+                    x: 5,
+                    y: 5,
                     special_activated: false,
                     rotation: Rotation::Zero,
                 }),
@@ -1171,8 +1171,8 @@ mod tests {
             RawInput {
                 hand_idx: HandIndex::H1,
                 action: Action::Place(RawPlacement {
-                    x: -2,
-                    y: -2,
+                    x: 5,
+                    y: 5,
                     special_activated: false,
                     rotation: Rotation::Zero,
                 }),
@@ -1187,8 +1187,8 @@ mod tests {
             RawInput {
                 hand_idx: HandIndex::H2,
                 action: Action::Place(RawPlacement {
-                    x: -2,
-                    y: -2,
+                    x: 5,
+                    y: 5,
                     special_activated: false,
                     rotation: Rotation::Zero,
                 }),
@@ -1253,8 +1253,8 @@ mod tests {
             RawInput {
                 hand_idx: HandIndex::H1,
                 action: Action::Place(RawPlacement {
-                    x: -2,
-                    y: -2,
+                    x: 5,
+                    y: 5,
                     special_activated: true,
                     rotation: Rotation::Zero,
                 }),
@@ -1269,8 +1269,8 @@ mod tests {
             RawInput {
                 hand_idx: HandIndex::H2,
                 action: Action::Place(RawPlacement {
-                    x: -2,
-                    y: -2,
+                    x: 5,
+                    y: 5,
                     special_activated: true,
                     rotation: Rotation::Zero,
                 }),

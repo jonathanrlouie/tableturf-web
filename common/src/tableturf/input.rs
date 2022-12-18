@@ -39,8 +39,8 @@ pub enum Action {
 #[derive(Deserialize, Debug)]
 pub struct RawPlacement {
     // The x and y coordinates of the top-left corner of the card's grid
-    pub x: i32,
-    pub y: i32,
+    pub x: usize,
+    pub y: usize,
     pub special_activated: bool,
     pub rotation: Rotation,
 }
@@ -226,7 +226,7 @@ fn placement_adjacent_to_special(
 fn placement_collision(inked_spaces: &[(BoardPosition, InkSpace)], board: &Board) -> bool {
     inked_spaces.iter().any(|(bp, _)| {
         !matches!(
-            board.get_space(bp.x() as i32, bp.y() as i32),
+            board.get_space(bp.x(), bp.y()),
             BoardSpace::Empty
         )
     })
@@ -235,7 +235,7 @@ fn placement_collision(inked_spaces: &[(BoardPosition, InkSpace)], board: &Board
 // Test if an entire special placement of ink overlaps any special spaces or walls
 fn special_collision(inked_spaces: &[(BoardPosition, InkSpace)], board: &Board) -> bool {
     inked_spaces.iter().any(|(bp, _)| {
-        let board_space = board.get_space(bp.x() as i32, bp.y() as i32);
+        let board_space = board.get_space(bp.x(), bp.y());
         matches!(board_space, BoardSpace::Special { .. })
             || matches!(board_space, BoardSpace::Wall)
             || matches!(board_space, BoardSpace::OutOfBounds)
@@ -649,8 +649,8 @@ mod tests {
         let special = 5;
         let player = Player::new(hand, deck.clone(), special);
         let raw_placement = RawPlacement {
-            x: -3,
-            y: -3,
+            x: 4,
+            y: 4,
             special_activated: false,
             rotation: Rotation::Two,
         };
@@ -661,15 +661,15 @@ mod tests {
         assert_eq!(placement.ink_spaces.len(), 3);
         assert_eq!(
             placement.ink_spaces[0].0,
-            BoardPosition::new(&board, 0, 0).unwrap()
+            BoardPosition::new(&board, 7, 7).unwrap()
         );
         assert_eq!(
             placement.ink_spaces[1].0,
-            BoardPosition::new(&board, 1, 0).unwrap()
+            BoardPosition::new(&board, 8, 7).unwrap()
         );
         assert_eq!(
             placement.ink_spaces[2].0,
-            BoardPosition::new(&board, 0, 1).unwrap()
+            BoardPosition::new(&board, 7, 8).unwrap()
         );
 
         // Test placing ink on top of an inked space
@@ -680,8 +680,8 @@ mod tests {
         ])
         .unwrap();
         let raw_placement = RawPlacement {
-            x: -3,
-            y: -3,
+            x: 4,
+            y: 4,
             special_activated: false,
             rotation: Rotation::Two,
         };
@@ -697,8 +697,8 @@ mod tests {
         ])
         .unwrap();
         let raw_placement = RawPlacement {
-            x: -3,
-            y: -3,
+            x: 4,
+            y: 4,
             special_activated: true,
             rotation: Rotation::Two,
         };
@@ -716,8 +716,8 @@ mod tests {
         ])
         .unwrap();
         let raw_placement = RawPlacement {
-            x: -3,
-            y: -3,
+            x: 4,
+            y: 4,
             special_activated: true,
             rotation: Rotation::Two,
         };
@@ -738,8 +738,8 @@ mod tests {
         ])
         .unwrap();
         let raw_placement = RawPlacement {
-            x: -3,
-            y: -3,
+            x: 4,
+            y: 4,
             special_activated: true,
             rotation: Rotation::Two,
         };
@@ -755,8 +755,8 @@ mod tests {
         ])
         .unwrap();
         let raw_placement = RawPlacement {
-            x: -3,
-            y: -3,
+            x: 4,
+            y: 4,
             special_activated: false,
             rotation: Rotation::Two,
         };
@@ -772,8 +772,8 @@ mod tests {
         ])
         .unwrap();
         let raw_placement = RawPlacement {
-            x: -3,
-            y: -3,
+            x: 4,
+            y: 4,
             special_activated: true,
             rotation: Rotation::Two,
         };
@@ -789,8 +789,8 @@ mod tests {
         ])
         .unwrap();
         let raw_placement = RawPlacement {
-            x: -3,
-            y: -3,
+            x: 4,
+            y: 4,
             special_activated: false,
             rotation: Rotation::Two,
         };
@@ -812,9 +812,9 @@ mod tests {
         ])
         .unwrap();
         let ink_spaces = vec![
-            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+            (BoardPosition::new(&board, 7, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 8, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 7, 8).unwrap(), InkSpace::Special),
         ];
         assert!(!placement_collision(&ink_spaces, &board));
 
@@ -825,9 +825,9 @@ mod tests {
         ])
         .unwrap();
         let ink_spaces = vec![
-            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+            (BoardPosition::new(&board, 7, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 8, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 7, 8).unwrap(), InkSpace::Special),
         ];
         assert!(placement_collision(&ink_spaces, &board));
     }
@@ -849,9 +849,9 @@ mod tests {
         ])
         .unwrap();
         let ink_spaces = vec![
-            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+            (BoardPosition::new(&board, 7, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 8, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 7, 8).unwrap(), InkSpace::Special),
         ];
         assert!(placement_adjacent_to_ink(
             &ink_spaces,
@@ -866,9 +866,9 @@ mod tests {
         ])
         .unwrap();
         let ink_spaces = vec![
-            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+            (BoardPosition::new(&board, 7, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 8, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 7, 8).unwrap(), InkSpace::Special),
         ];
         assert!(placement_adjacent_to_ink(
             &ink_spaces,
@@ -883,9 +883,9 @@ mod tests {
         ])
         .unwrap();
         let ink_spaces = vec![
-            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+            (BoardPosition::new(&board, 7, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 8, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 7, 8).unwrap(), InkSpace::Special),
         ];
         assert!(!placement_adjacent_to_ink(
             &ink_spaces,
@@ -908,9 +908,9 @@ mod tests {
         ])
         .unwrap();
         let ink_spaces = vec![
-            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+            (BoardPosition::new(&board, 7, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 8, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 7, 8).unwrap(), InkSpace::Special),
         ];
         assert!(!special_collision(&ink_spaces, &board));
 
@@ -921,9 +921,9 @@ mod tests {
         ])
         .unwrap();
         let ink_spaces = vec![
-            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+            (BoardPosition::new(&board, 7, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 8, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 7, 8).unwrap(), InkSpace::Special),
         ];
         assert!(!special_collision(&ink_spaces, &board));
 
@@ -934,9 +934,9 @@ mod tests {
         ])
         .unwrap();
         let ink_spaces = vec![
-            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+            (BoardPosition::new(&board, 7, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 8, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 7, 8).unwrap(), InkSpace::Special),
         ];
         assert!(special_collision(&ink_spaces, &board));
     }
@@ -958,9 +958,9 @@ mod tests {
         ])
         .unwrap();
         let ink_spaces = vec![
-            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+            (BoardPosition::new(&board, 7, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 8, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 7, 8).unwrap(), InkSpace::Special),
         ];
         assert!(!placement_adjacent_to_special(
             &ink_spaces,
@@ -975,9 +975,9 @@ mod tests {
         ])
         .unwrap();
         let ink_spaces = vec![
-            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+            (BoardPosition::new(&board, 7, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 8, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 7, 8).unwrap(), InkSpace::Special),
         ];
         assert!(placement_adjacent_to_special(
             &ink_spaces,
@@ -992,9 +992,9 @@ mod tests {
         ])
         .unwrap();
         let ink_spaces = vec![
-            (BoardPosition::new(&board, 0, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 1, 0).unwrap(), InkSpace::Normal),
-            (BoardPosition::new(&board, 0, 1).unwrap(), InkSpace::Special),
+            (BoardPosition::new(&board, 7, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 8, 7).unwrap(), InkSpace::Normal),
+            (BoardPosition::new(&board, 7, 8).unwrap(), InkSpace::Special),
         ];
         assert!(!placement_adjacent_to_special(
             &ink_spaces,
@@ -1029,30 +1029,13 @@ mod tests {
         );
         assert!(input.is_ok());
 
-        // Test placing a card just out of bounds in the top-left
-        let input = ValidInput::new(
-            RawInput {
-                hand_idx: HandIndex::H3,
-                action: Action::Place(RawPlacement {
-                    x: -8,
-                    y: -8,
-                    special_activated: false,
-                    rotation: Rotation::Zero,
-                }),
-            },
-            &board,
-            &player,
-            PlayerNum::P1,
-        );
-        assert!(input.is_err());
-
         // Test placing a card as far to the top-left as possible
         let input = ValidInput::new(
             RawInput {
                 hand_idx: HandIndex::H3,
                 action: Action::Place(RawPlacement {
-                    x: -7,
-                    y: -7,
+                    x: 0,
+                    y: 0,
                     special_activated: false,
                     rotation: Rotation::Zero,
                 }),
@@ -1068,8 +1051,8 @@ mod tests {
             RawInput {
                 hand_idx: HandIndex::H2,
                 action: Action::Place(RawPlacement {
-                    x: 2,
-                    y: 2,
+                    x: 9,
+                    y: 9,
                     special_activated: false,
                     rotation: Rotation::Zero,
                 }),
@@ -1085,8 +1068,8 @@ mod tests {
             RawInput {
                 hand_idx: HandIndex::H2,
                 action: Action::Place(RawPlacement {
-                    x: 3,
-                    y: 2,
+                    x: 10,
+                    y: 9,
                     special_activated: false,
                     rotation: Rotation::Zero,
                 }),

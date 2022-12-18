@@ -299,7 +299,7 @@ fn send_messages<M1: Serialize, M2: Serialize>(
 mod tests {
     use super::*;
     use crate::client::SendError;
-    use crate::tableturf::*;
+    use common::*;
 
     struct MockSender;
     impl SendMsg for MockSender {
