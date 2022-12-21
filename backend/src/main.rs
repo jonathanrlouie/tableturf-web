@@ -5,7 +5,10 @@ use std::convert::Infallible;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
-use warp::Filter;
+use warp::{
+    http::{header, Method},
+    Filter
+};
 
 mod client;
 mod game;
@@ -52,7 +55,24 @@ async fn main() {
     let routes = health_route
         .or(register_routes)
         .or(ws_route)
-        .with(warp::cors().allow_any_origin());
+        .with(
+            warp::cors()
+                .allow_credentials(true)
+                .allow_methods(&[
+                    Method::OPTIONS,
+                    Method::GET,
+                    Method::POST,
+                    Method::DELETE,
+                    Method::PUT,
+                ])
+                .allow_headers(vec![
+                    header::CONTENT_TYPE,
+                    header::ACCEPT,
+                    header::ACCESS_CONTROL_ALLOW_ORIGIN])
+                .expose_headers(vec![header::LINK])
+                .max_age(300)
+                .allow_any_origin());
+
 
     warp::serve(routes).run(([127, 0, 0, 1], 8000)).await;
 }

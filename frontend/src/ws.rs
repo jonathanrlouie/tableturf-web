@@ -1,44 +1,70 @@
-/*
 use futures::{channel::mpsc::Sender, SinkExt, StreamExt};
-use reqwasm::websocket::{futures::WebSocket, Message};
+use reqwasm::{
+    http::{Request as HttpRequest},
+    websocket::{futures::WebSocket, Message}
+};
 use wasm_bindgen_futures::spawn_local;
-use tracing;
+use serde::Deserialize;
+use yew_agent::Dispatched;
+use crate::event_bus::{EventBus, Request};
+//use tracing;
 
-pub fn connect() -> Sender<String> {
-    // send curl request first to get url
-    //let url = curl::request("curl -X POST \'http://localhost:8000/register\' -H \'Content-Type: applicationi/json\' -d ");
-    let ws = WebSocket::open(url).unwrap();
+#[derive(Deserialize)]
+struct RegistrationResponse {
+    url: String
+}
 
-    let (mut write, mut read) = ws.split();
-
+#[tracing::instrument]
+pub fn connect(user_id: String) -> Sender<String> {
     let (in_tx, mut in_rx) = futures::channel::mpsc::channel::<String>(1000);
+    let mut event_bus = EventBus::dispatcher();
     spawn_local(async move {
-        while let Some(s) = in_rx.next().await {
-            tracing::debug!("got event from channel! {}", s);
-            write.send(Message::Text(s)).await.unwrap();
-        }
-    });
+        // send curl request first to get url
+        //tracing::debug!("Sending curl request for ws URL");
+        let response = HttpRequest::post("http://localhost:8000/register")
+            .header("Content-Type", "application/json")
+            .body(format!("{{ \"user_id\": {}}}", user_id))
+            .send()
+            .await
+            .unwrap();
 
-    spawn_local(async move {
-        while let Some(msg) = read.next().await {
-            match msg {
-                Ok(Message::Text(data)) => {
-                    tracing::debug!("from websocket: {}", data);
-                }
-                Ok(Message::Bytes(b)) => {
-                    let decoded = std::str::from_utf8(&b);
-                    if let Ok(val) = decoded {
-                        tracing::debug!("from websocket: {}", val);
+        //tracing::debug!("Parsing JSON response with ws URL");
+        let url_response: RegistrationResponse = response.json().await.unwrap();
+        //tracing::debug!("Opening ws connection");
+        let ws = WebSocket::open(&url_response.url).unwrap();
+
+        let (mut write, mut read) = ws.split();
+    
+        spawn_local(async move {
+            while let Some(s) = in_rx.next().await {
+                //tracing::debug!("got event from channel! {}", s);
+                write.send(Message::Text(s)).await.unwrap();
+            }
+        });
+
+        spawn_local(async move {
+            while let Some(msg) = read.next().await {
+                match msg {
+                    Ok(Message::Text(data)) => {
+                        //tracing::debug!("from websocket: {}", data);
+                        event_bus.send(Request::EventBusMsg(data));
+                    }
+                    Ok(Message::Bytes(b)) => {
+                        let decoded = std::str::from_utf8(&b);
+                        if let Ok(val) = decoded {
+                            //tracing::debug!("from websocket: {}", val);
+                            event_bus.send(Request::EventBusMsg(val.into()));
+                        }
+                    }
+                    Err(e) => {
+                        //tracing::error!("ws: {:?}", e)
                     }
                 }
-                Err(e) => {
-                    tracing::error!("ws: {:?}", e)
-                }
             }
-        }
-        tracing::debug!("WebSocket closed");
+            //tracing::debug!("WebSocket closed");
+        });
     });
 
     in_tx
 }
-*/
+

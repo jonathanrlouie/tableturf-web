@@ -2,7 +2,7 @@ use crate::client::SendMsg;
 use crate::util;
 use common::{
     DeckRng, DrawRng, GameState, InputError, Outcome as GameOutcome, PlayerNum,
-    RawInput, ValidInput, messages::{RedrawResponse, StateResponse, Outcome, GameEndResponse}
+    RawInput, ValidInput, messages::{Response, Outcome}
 };
 use hashbrown::HashMap;
 use serde::Serialize;
@@ -192,11 +192,11 @@ impl<R: DrawRng + Default + Debug> Game<R> {
                     //info!("Game end state: {:?}", self.game_state.board());
                     ProtocolState::Rematch([None, None])
                 } else {
-                    let client_msg = StateResponse {
+                    let client_msg = Response::GameState {
                         board: self.game_state.board().clone(),
                         player: self.game_state.player(player_num).clone(),
                     };
-                    let opponent_msg = StateResponse {
+                    let opponent_msg = Response::GameState {
                         board: self.game_state.board().clone(),
                         player: self.game_state.player(other_player(player_num)).clone(),
                     };
@@ -225,11 +225,11 @@ impl<R: DrawRng + Default + Debug> Game<R> {
         match choices {
             [Some(true), Some(true)] => {
                 self.game_state = GameState::default();
-                let client_msg = StateResponse {
+                let client_msg = Response::GameState {
                     board: self.game_state.board().clone(),
                     player: self.game_state.player(player_num).clone(),
                 };
-                let opponent_msg = StateResponse {
+                let opponent_msg = Response::GameState {
                     board: self.game_state.board().clone(),
                     player: self.game_state.player(other_player(player_num)).clone(),
                 };
@@ -249,10 +249,10 @@ fn send_redraw_responses<R: DrawRng + Debug>(
     client: &impl SendMsg,
     opponent: &impl SendMsg,
 ) {
-    let client_msg = RedrawResponse {
+    let client_msg = Response::Redraw {
         player: game_state.player(player_num).clone(),
     };
-    let opponent_msg = RedrawResponse {
+    let opponent_msg = Response::Redraw {
         player: game_state.player(other_player(player_num)).clone(),
     };
     send_messages(client, client_msg, opponent, opponent_msg);
@@ -264,10 +264,10 @@ fn send_outcomes(
     opponent: &impl SendMsg,
     opponent_outcome: Outcome,
 ) {
-    let client_msg = GameEndResponse {
+    let client_msg = Response::GameEnd {
         outcome: client_outcome,
     };
-    let opponent_msg = GameEndResponse {
+    let opponent_msg = Response::GameEnd {
         outcome: opponent_outcome,
     };
     send_messages(client, client_msg, opponent, opponent_msg);
