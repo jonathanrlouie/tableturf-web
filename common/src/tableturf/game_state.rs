@@ -40,7 +40,7 @@ pub enum Outcome {
 }
 
 #[derive(Debug)]
-pub struct GameState<R: DrawRng + Debug> {
+pub struct GameState<R: Debug> {
     board: Board,
     players: Players,
     turns_left: u32,
