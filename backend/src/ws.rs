@@ -56,6 +56,7 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients, games: &mut Games
     };
 
     if message == "ping" {
+        println!("pong");
         return;
     }
 

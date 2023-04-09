@@ -1,9 +1,10 @@
 use yew::prelude::*;
 use common::{CARD_WIDTH, Deck, Hand, HandIndex, Board, BoardSpace, Card, CardSpace, InkSpace, PlayerNum, DeckRng, GameState};
 use std::collections::HashSet;
+use std::rc::Rc;
 use crate::User;
 use futures::channel::mpsc::Sender;
-use crate::event_bus::EventBus;
+use crate::event_bus::WebSocketWorker;
 use common::messages::Response;
 use yew_agent::{Bridge, Bridged};
 use crate::ws;
@@ -11,9 +12,9 @@ use crate::ws;
 const CURSOR_OFFSET: usize = 4;
 
 pub enum Message {
-    Handle(String),
     ClickCard(HandIndex),
     ClickSpace,
+    WorkerMsg(String)
 }
 
 #[derive(Properties, PartialEq)]
@@ -37,7 +38,7 @@ enum Phase {
     WaitingForGameStart,
     Redraw,
     WaitForBattleStart,
-    Battle(BattleState),
+    Battle,
     WaitForOpponentInput,
     GameEnd
 }
@@ -58,7 +59,8 @@ struct CursorState {
 pub struct Battle {
     ws_sender: Sender<String>,
     phase: Phase,
-    _producer: Box<dyn Bridge<EventBus>>
+    state: BattleState,
+    worker: Box<dyn Bridge<WebSocketWorker>>
 }
 
 impl Component for Battle {
@@ -66,10 +68,13 @@ impl Component for Battle {
     type Properties = ();
 
     fn create(ctx: &Context<Self>) -> Self {
-        let (user, _) = ctx.link()
-            .context::<User>(Callback::noop())
-            .unwrap();
-        let ws_sender = ws::connect(user.user_id.borrow().clone());
+        // forward message returned from worker to Component's update method
+        let cb = {
+            let link = ctx.link().clone();
+            move |msg| link.send_message(Self::Message::WorkerMsg(msg))
+        };
+        let worker = WebSocketWorker::bridge(Rc::new(cb));
+        let ws_sender = ws::connect("0".to_string());
 
         // TODO: these vars are temporary. delete later.
         let game_state = GameState::<DeckRng>::default();
@@ -78,19 +83,20 @@ impl Component for Battle {
         Self {
             ws_sender,
             //phase: Phase::WaitingForGameStart,
-            phase: Phase::Battle(BattleState {
+            phase: Phase::Battle,
+            state: BattleState {
                 board: game_state.board().clone(),
                 hand_idx: HandIndex::H1,
                 hand: player.hand().clone(),
                 deck: player.deck().clone(),
-            }),
-            _producer: EventBus::bridge(ctx.link().callback(Message::Handle)),
+            },
+            worker,
         }
     }
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Message::Handle(response) => {
+            Message::WorkerMsg(response) => {
                 let response: Response = serde_json::from_str(&response).unwrap();
                 match response {
                     Response::Redraw { player } => {}
@@ -99,32 +105,34 @@ impl Component for Battle {
                 }
             }
             Message::ClickCard(hand_idx) => {
-                self.phase = Phase::Battle(BattleState {
+                self.state = BattleState {
                     hand_idx,
-                    ..self.phase.clone()
-                });
+                    ..self.state.clone()
+                };
             }
             Message::ClickSpace => {
+                self.ws_sender.try_send("ping".to_string()).unwrap();
                 
             }
         }
+        true
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         match self.phase {
-            Phase::Battle(state) => self.view_battle(ctx, state),
+            Phase::Battle => self.view_battle(ctx),
             _ => html! {}
         }
     }
 }
     
 impl Battle {
-    fn view_battle(&self, ctx: &Context<Self>, state: &BattleState) {
+    fn view_battle(&self, ctx: &Context<Self>) -> Html {
         let onclick_space = ctx.link().callback(|_| Message::ClickSpace);
         let onclick_card = ctx.link().callback(|hand_idx| Message::ClickCard(hand_idx));
-        let board = state.board.clone();
-        let hand = state.hand.clone();
-        let deck = state.deck.clone();
+        let board = self.state.board.clone();
+        let hand = self.state.hand.clone();
+        let deck = self.state.deck.clone();
         let (card1, _) = deck.index(hand[HandIndex::H1]);
         let card1 = card1.clone();
         let (card2, _) = deck.index(hand[HandIndex::H2]);
@@ -133,13 +141,13 @@ impl Battle {
         let card3 = card3.clone();
         let (card4, _) = deck.index(hand[HandIndex::H4]);
         let card4 = card4.clone();
-        let (selected_card, _) = deck.index(hand[state.hand_idx]);
+        let (selected_card, _) = deck.index(hand[self.state.hand_idx]);
         let selected_card = selected_card.clone();
         html! {
             <section id="page">
                 <BoardComponent
                     board={board}
-                    handidx={self.hand_idx}
+                    handidx={self.state.hand_idx}
                     selectedcard={selected_card}
                     onclick={onclick_space}/>
                 <div class={classes!("choices")}>
@@ -147,22 +155,22 @@ impl Battle {
                         card={card1}
                         onclick={onclick_card.clone()}
                         handidx={HandIndex::H1}
-                        selected={state.hand_idx == HandIndex::H1}/>
+                        selected={self.state.hand_idx == HandIndex::H1}/>
                     <CardComponent
                         card={card2}
                         onclick={onclick_card.clone()}
                         handidx={HandIndex::H2}
-                        selected={state.hand_idx == HandIndex::H2}/>
+                        selected={self.state.hand_idx == HandIndex::H2}/>
                     <CardComponent
                         card={card3}
                         onclick={onclick_card.clone()}
                         handidx={HandIndex::H3}
-                        selected={state.hand_idx == HandIndex::H3}/>
+                        selected={self.state.hand_idx == HandIndex::H3}/>
                     <CardComponent
                         card={card4}
                         onclick={onclick_card.clone()}
                         handidx={HandIndex::H4}
-                        selected={state.hand_idx == HandIndex::H4}/>
+                        selected={self.state.hand_idx == HandIndex::H4}/>
                     <button>{"Pass"}</button>
                     <button>{"Special"}</button>
                 </div>

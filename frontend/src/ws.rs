@@ -6,7 +6,7 @@ use reqwasm::{
 use wasm_bindgen_futures::spawn_local;
 use serde::Deserialize;
 use yew_agent::Dispatched;
-use crate::event_bus::{EventBus, Request};
+use crate::event_bus::{WebSocketWorker, Request};
 //use tracing;
 
 #[derive(Deserialize)]
@@ -17,7 +17,7 @@ struct RegistrationResponse {
 #[tracing::instrument]
 pub fn connect(user_id: String) -> Sender<String> {
     let (in_tx, mut in_rx) = futures::channel::mpsc::channel::<String>(1000);
-    let mut event_bus = EventBus::dispatcher();
+    let mut ws_worker = WebSocketWorker::dispatcher();
     spawn_local(async move {
         // send curl request first to get url
         //tracing::debug!("Sending curl request for ws URL");
@@ -47,13 +47,13 @@ pub fn connect(user_id: String) -> Sender<String> {
                 match msg {
                     Ok(Message::Text(data)) => {
                         //tracing::debug!("from websocket: {}", data);
-                        event_bus.send(Request::EventBusMsg(data));
+                        ws_worker.send(Request::Input(data));
                     }
                     Ok(Message::Bytes(b)) => {
                         let decoded = std::str::from_utf8(&b);
                         if let Ok(val) = decoded {
                             //tracing::debug!("from websocket: {}", val);
-                            event_bus.send(Request::EventBusMsg(val.into()));
+                            ws_worker.send(Request::Input(val.into()));
                         }
                     }
                     Err(e) => {
