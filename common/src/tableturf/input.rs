@@ -2,7 +2,7 @@ use crate::tableturf::board::{Board, BoardPosition, BoardPositionError, BoardSpa
 use crate::tableturf::card::{Card, Grid, InkSpace, CARD_WIDTH};
 use crate::tableturf::deck::HandIndex;
 use crate::tableturf::player::{Player, PlayerNum};
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -22,7 +22,7 @@ pub enum InputError {
 }
 
 // Represents the number of counter-clockwise rotations applied to a Card
-#[derive(Deserialize, Copy, Clone, Debug)]
+#[derive(Serialize, Deserialize, Copy, Clone, Debug)]
 pub enum Rotation {
     Zero,
     One,
@@ -30,13 +30,13 @@ pub enum Rotation {
     Three,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Action {
     Pass,
     Place(RawPlacement),
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct RawPlacement {
     // The x and y coordinates of the top-left corner of the card's grid
     pub x: usize,
@@ -45,7 +45,7 @@ pub struct RawPlacement {
     pub rotation: Rotation,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct RawInput {
     pub hand_idx: HandIndex,
     pub action: Action,

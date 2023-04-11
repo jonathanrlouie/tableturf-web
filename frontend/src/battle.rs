@@ -1,10 +1,10 @@
 use yew::prelude::*;
-use common::{CARD_WIDTH, Deck, Hand, HandIndex, Board, BoardSpace, Card, CardSpace, InkSpace, PlayerNum, DeckRng, GameState};
+use common::{CARD_WIDTH, Deck, Hand, HandIndex, Board, BoardSpace, Card, CardSpace, InkSpace, PlayerNum, DeckRng, GameState, RawInput, Rotation, Action, RawPlacement};
 use std::collections::HashSet;
 use std::rc::Rc;
 use crate::User;
 use futures::channel::mpsc::Sender;
-use crate::event_bus::WebSocketWorker;
+use crate::worker::WebSocketWorker;
 use common::messages::Response;
 use yew_agent::{Bridge, Bridged};
 use crate::ws;
@@ -13,7 +13,7 @@ const CURSOR_OFFSET: usize = 4;
 
 pub enum Message {
     ClickCard(HandIndex),
-    ClickSpace,
+    ClickSpace(usize, usize),
     WorkerMsg(String)
 }
 
@@ -68,13 +68,18 @@ impl Component for Battle {
     type Properties = ();
 
     fn create(ctx: &Context<Self>) -> Self {
+        let (user, _) = ctx
+            .link()
+            .context::<User>(Callback::noop())
+            .expect("context to be set");
         // forward message returned from worker to Component's update method
         let cb = {
             let link = ctx.link().clone();
             move |msg| link.send_message(Self::Message::WorkerMsg(msg))
         };
         let worker = WebSocketWorker::bridge(Rc::new(cb));
-        let ws_sender = ws::connect("0".to_string());
+        let mut ws_sender = ws::connect(user.user_id.borrow().clone());
+        ws_sender.try_send("join".to_string()).unwrap();
 
         // TODO: these vars are temporary. delete later.
         let game_state = GameState::<DeckRng>::default();
@@ -110,9 +115,17 @@ impl Component for Battle {
                     ..self.state.clone()
                 };
             }
-            Message::ClickSpace => {
-                self.ws_sender.try_send("ping".to_string()).unwrap();
-                
+            Message::ClickSpace(x, y) => {
+                let input = RawInput {
+                    hand_idx: self.state.hand_idx,
+                    action: Action::Place(RawPlacement {
+                        x,
+                        y,
+                        special_activated: false,
+                        rotation: Rotation::Zero,
+                    }),
+                };
+                self.ws_sender.try_send(serde_json::to_string(&input).unwrap()).unwrap();
             }
         }
         true
@@ -128,7 +141,7 @@ impl Component for Battle {
     
 impl Battle {
     fn view_battle(&self, ctx: &Context<Self>) -> Html {
-        let onclick_space = ctx.link().callback(|_| Message::ClickSpace);
+        let onclick_space = ctx.link().callback(|(x, y)| Message::ClickSpace(x, y));
         let onclick_card = ctx.link().callback(|hand_idx| Message::ClickCard(hand_idx));
         let board = self.state.board.clone();
         let hand = self.state.hand.clone();

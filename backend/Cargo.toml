@@ -17,7 +17,7 @@ rand = "0.8.5"
 thiserror = "1.0.37"
 hashbrown = "0.13.1"
 tracing = "0.1.37"
-tracing-subscriber = { version = "0.3.0", features = ["json"] }
+tracing-subscriber = { version = "0.3.0", features = ["json", "ansi"] }
 tracing-appender = "0.2.2"
 common = { version = "0.1.0", path = "../common" }
 

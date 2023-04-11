@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 mod battle;
 mod ws;
-mod event_bus;
+mod worker;
 
 pub type User = Rc<UserInner>;
 

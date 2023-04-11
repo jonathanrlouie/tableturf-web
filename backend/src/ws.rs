@@ -56,7 +56,6 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients, games: &mut Games
     };
 
     if message == "ping" {
-        println!("pong");
         return;
     }
 
@@ -92,10 +91,12 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients, games: &mut Games
                 opponent.sender.as_ref().unwrap(),
             );
             if game.is_over() {
+                info!("client {} changing state to Idle", id);
                 client.status = Status::Idle;
                 // If the message fails to send even after retries, there's not much we can do but proceed
                 let _ =
                     util::retry::<(), _, _>(1, || client.sender.as_ref().unwrap().send("leave"));
+                info!("client {} changing state to Idle", opponent_id);
                 opponent.status = Status::Idle;
                 let _ =
                     util::retry::<(), _, _>(1, || opponent.sender.as_ref().unwrap().send("leave"));
@@ -112,6 +113,7 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients, games: &mut Games
     }
 }
 
+#[tracing::instrument]
 async fn client_join(id: &str, clients: &mut HashMap<String, Client>, games: &mut Games) {
     let mut waiting_clients = clients
         .iter_mut()
@@ -149,17 +151,22 @@ async fn client_join(id: &str, clients: &mut HashMap<String, Client>, games: &mu
             game_uuid.clone(),
             Game::new(game_state, [id.to_string(), opponent_id.to_string()]),
         );
+        info!("client {} changing state to InGame", id);
         client.status = Status::InGame {
             uuid: game_uuid.clone(),
             player_num: PlayerNum::P1,
         };
+        info!("client {} changing state to InGame", opponent_id);
         opponent.status = Status::InGame {
             uuid: game_uuid,
             player_num: PlayerNum::P2,
         };
     } else {
         match clients.get_mut(id) {
-            Some(c) => c.status = Status::JoiningGame,
+            Some(c) => {
+                info!("client {} changing state to JoiningGame", id);
+                c.status = Status::JoiningGame;
+            }
             None => error!("Joining client {} not in list of registered clients", id),
         }
     }

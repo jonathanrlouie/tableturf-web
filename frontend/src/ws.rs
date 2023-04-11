@@ -6,7 +6,7 @@ use reqwasm::{
 use wasm_bindgen_futures::spawn_local;
 use serde::Deserialize;
 use yew_agent::Dispatched;
-use crate::event_bus::{WebSocketWorker, Request};
+use crate::worker::{WebSocketWorker, Request};
 //use tracing;
 
 #[derive(Deserialize)]

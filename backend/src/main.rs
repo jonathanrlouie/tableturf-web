@@ -5,6 +5,7 @@ use std::convert::Infallible;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
+use tracing_subscriber::{Layer, prelude::*};
 use warp::{
     http::{header, Method},
     Filter
@@ -21,11 +22,16 @@ mod ws;
 async fn main() {
     let file_appender = tracing_appender::rolling::daily("./logs", "server.log");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-    let subscriber = tracing_subscriber::fmt()
+    let file_log = tracing_subscriber::fmt::layer()
         .json()
-        .with_writer(non_blocking)
-        .finish();
-    tracing::subscriber::set_global_default(subscriber).unwrap();
+        .with_writer(non_blocking);
+    let stdout_log = tracing_subscriber::fmt::layer().pretty();
+
+    tracing_subscriber::registry()
+        .with(stdout_log
+            .with_filter(tracing_subscriber::filter::LevelFilter::INFO)
+            .and_then(file_log))
+        .init();
 
     let clients: Clients = Arc::new(RwLock::new(HashMap::new()));
     let games: Games = Arc::new(RwLock::new(HashMap::new()));
