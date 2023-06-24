@@ -5,3 +5,6 @@ You will need:
 - trunk
   - `brew install trunk` OR `cargo install --locked trunk`
 - rustup target add wasm32-unknown-unknown
+
+# Starting up the frontend
+Run `trunk serve`

@@ -7,6 +7,7 @@ use wasm_bindgen_futures::spawn_local;
 use serde::Deserialize;
 use yew_agent::Dispatched;
 use crate::worker::{WebSocketWorker, Request};
+use gloo::console::log;
 //use tracing;
 
 #[derive(Deserialize)]
@@ -37,7 +38,7 @@ pub fn connect(user_id: String) -> Sender<String> {
     
         spawn_local(async move {
             while let Some(s) = in_rx.next().await {
-                //tracing::debug!("got event from channel! {}", s);
+                log!("Sent message: ", &s);
                 write.send(Message::Text(s)).await.unwrap();
             }
         });
@@ -47,12 +48,14 @@ pub fn connect(user_id: String) -> Sender<String> {
                 match msg {
                     Ok(Message::Text(data)) => {
                         //tracing::debug!("from websocket: {}", data);
+                        log!("Received message: ", &data);
                         ws_worker.send(Request::Input(data));
                     }
                     Ok(Message::Bytes(b)) => {
                         let decoded = std::str::from_utf8(&b);
                         if let Ok(val) = decoded {
                             //tracing::debug!("from websocket: {}", val);
+                            log!("Received message: ", val);
                             ws_worker.send(Request::Input(val.into()));
                         }
                     }

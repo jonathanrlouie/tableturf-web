@@ -1,7 +1,7 @@
 use crate::client::{Client, Clients, SendMsg, Sender, Status};
 use crate::game::{Game, Games};
 use crate::util;
-use common::{GameState, PlayerNum, messages::Response};
+use common::{GameState, PlayerNum, messages};
 use futures::{FutureExt, StreamExt};
 use hashbrown::HashMap;
 use tokio::sync::mpsc;
@@ -128,13 +128,13 @@ async fn client_join(id: &str, clients: &mut HashMap<String, Client>, games: &mu
         let player2 = game_state.player(PlayerNum::P2).clone();
 
         // If we cannot serialize the response to the client, panic because that's a bug
-        let client_response = serde_json::to_string(&Response::GameState {
+        let client_response = serde_json::to_string(&messages::GameState {
             board: game_state.board().clone(),
             player: player1,
         })
         .unwrap();
 
-        let opponent_response = serde_json::to_string(&Response::GameState {
+        let opponent_response = serde_json::to_string(&messages::GameState {
             board: game_state.board().clone(),
             player: player2,
         })

@@ -2,19 +2,36 @@ use yew::prelude::*;
 use common::{CARD_WIDTH, Deck, Hand, HandIndex, Board, BoardSpace, Card, CardSpace, InkSpace, PlayerNum, DeckRng, GameState, RawInput, Rotation, Action, RawPlacement};
 use std::collections::HashSet;
 use std::rc::Rc;
+use std::fmt;
 use crate::User;
 use futures::channel::mpsc::Sender;
 use crate::worker::WebSocketWorker;
-use common::messages::Response;
+use common::messages::{GameState as GameStateMsg, GameEnd};
 use yew_agent::{Bridge, Bridged};
 use crate::ws;
+use gloo::console::log;
 
 const CURSOR_OFFSET: usize = 4;
 
+#[derive(Debug, Clone)]
 pub enum Message {
+    Redraw,
+    KeepHand,
     ClickCard(HandIndex),
     ClickSpace(usize, usize),
     WorkerMsg(String)
+}
+
+impl fmt::Display for Message {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Message::Redraw => write!(f, "Redraw"),
+            Message::KeepHand => write!(f, "KeepHand"),
+            Message::ClickCard(idx) => write!(f, "ClickCard: {:?}", idx),
+            Message::ClickSpace(x, y) => write!(f, "ClickSpace: {:?}, {:?}", x, y),
+            Message::WorkerMsg(s) => write!(f, "WorkerMsg: {}", s),
+        }
+    }
 }
 
 #[derive(Properties, PartialEq)]
@@ -36,19 +53,26 @@ pub struct CardProps {
 #[derive(Clone)]
 enum Phase {
     WaitingForGameStart,
+    Battling(BattleState)
+}
+
+#[derive(Clone)]
+enum BattlePhase {
     Redraw,
-    WaitForBattleStart,
-    Battle,
-    WaitForOpponentInput,
+    WaitingForBattleStart,
+    Input,
+    WaitingForOpponentInput,
     GameEnd
 }
 
 #[derive(Clone)]
 struct BattleState {
+    phase: BattlePhase,
     board: Board,
     hand_idx: HandIndex,
     hand: Hand,
     deck: Deck,
+    turns_left: u32,
 }
 
 #[derive(Clone)]
@@ -59,7 +83,6 @@ struct CursorState {
 pub struct Battle {
     ws_sender: Sender<String>,
     phase: Phase,
-    state: BattleState,
     worker: Box<dyn Bridge<WebSocketWorker>>
 }
 
@@ -81,43 +104,68 @@ impl Component for Battle {
         let mut ws_sender = ws::connect(user.user_id.borrow().clone());
         ws_sender.try_send("join".to_string()).unwrap();
 
-        // TODO: these vars are temporary. delete later.
-        let game_state = GameState::<DeckRng>::default();
-        let player = game_state.player(PlayerNum::P1);
-
         Self {
             ws_sender,
-            //phase: Phase::WaitingForGameStart,
-            phase: Phase::Battle,
-            state: BattleState {
-                board: game_state.board().clone(),
-                hand_idx: HandIndex::H1,
-                hand: player.hand().clone(),
-                deck: player.deck().clone(),
-            },
+            phase: Phase::WaitingForGameStart,
             worker,
         }
     }
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
-        match msg {
-            Message::WorkerMsg(response) => {
-                let response: Response = serde_json::from_str(&response).unwrap();
-                match response {
-                    Response::Redraw { player } => {}
-                    Response::GameState { board, player } => {}
-                    Response::GameEnd { outcome } => {}
+        log!("Entering update");
+        match (msg.clone(), &mut self.phase) {
+            (Message::WorkerMsg(response), Phase::WaitingForGameStart) => {
+                log!("Entering Redraw state");
+                let game_state: GameStateMsg = serde_json::from_str(&response).unwrap();
+                self.phase = Phase::Battling(BattleState {
+                    phase: BattlePhase::Redraw,
+                    board: game_state.board,
+                    hand_idx: HandIndex::H1,
+                    hand: game_state.player.hand().clone(),
+                    deck: game_state.player.deck().clone(),
+                    turns_left: 12,
+                });
+            }
+            (Message::WorkerMsg(response), Phase::Battling(ref mut state)) => {
+                match state.phase {
+                    BattlePhase::Redraw => {},
+                    BattlePhase::WaitingForBattleStart => {
+                        let game_state: GameStateMsg = serde_json::from_str(&response).unwrap();
+                        state.board = game_state.board;
+                        state.hand_idx = HandIndex::H1;
+                        state.hand = game_state.player.hand().clone();
+                        state.deck = game_state.player.deck().clone();
+                        state.phase = BattlePhase::Input;
+                    },
+                    BattlePhase::Input => {},
+                    BattlePhase::WaitingForOpponentInput => {
+                        if state.turns_left == 0 {
+                            let game_state: GameStateMsg = serde_json::from_str(&response).unwrap();
+                            state.phase = BattlePhase::GameEnd;
+                        } else {
+                            let game_state: GameEnd = serde_json::from_str(&response).unwrap();
+                            state.board = game_state.board;
+                            state.phase = BattlePhase::Input;
+                            state.turns_left -= 1;
+                        }
+                    },
+                    BattlePhase::GameEnd => {},
                 }
             }
-            Message::ClickCard(hand_idx) => {
-                self.state = BattleState {
-                    hand_idx,
-                    ..self.state.clone()
-                };
+            (Message::Redraw, Phase::Battling(ref mut state)) => {
+                state.phase = BattlePhase::WaitingForBattleStart;
             }
-            Message::ClickSpace(x, y) => {
+            (Message::KeepHand, Phase::Battling(ref mut state)) => {
+                state.phase = BattlePhase::WaitingForBattleStart;
+                self.ws_sender.try_send(serde_json::to_string(&true).unwrap()).unwrap();
+            }
+            (Message::ClickCard(hand_idx), Phase::Battling(ref mut state)) => {
+                state.hand_idx = hand_idx;
+                self.ws_sender.try_send(serde_json::to_string(&false).unwrap()).unwrap();
+            }
+            (Message::ClickSpace(x, y), Phase::Battling(ref mut state)) => {
                 let input = RawInput {
-                    hand_idx: self.state.hand_idx,
+                    hand_idx: state.hand_idx,
                     action: Action::Place(RawPlacement {
                         x,
                         y,
@@ -126,75 +174,97 @@ impl Component for Battle {
                     }),
                 };
                 self.ws_sender.try_send(serde_json::to_string(&input).unwrap()).unwrap();
+                state.phase = BattlePhase::WaitingForOpponentInput;
+            }
+            _ => {
+                log!(msg.to_string());
             }
         }
         true
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        match self.phase {
-            Phase::Battle => self.view_battle(ctx),
-            _ => html! {}
+        log!("view function entered");
+        match &self.phase {
+            Phase::WaitingForGameStart => html! { "hello" },
+            Phase::Battling(state) => view_battle(ctx, &state),
         }
     }
 }
     
-impl Battle {
-    fn view_battle(&self, ctx: &Context<Self>) -> Html {
-        let onclick_space = ctx.link().callback(|(x, y)| Message::ClickSpace(x, y));
-        let onclick_card = ctx.link().callback(|hand_idx| Message::ClickCard(hand_idx));
-        let board = self.state.board.clone();
-        let hand = self.state.hand.clone();
-        let deck = self.state.deck.clone();
-        let (card1, _) = deck.index(hand[HandIndex::H1]);
-        let card1 = card1.clone();
-        let (card2, _) = deck.index(hand[HandIndex::H2]);
-        let card2 = card2.clone();
-        let (card3, _) = deck.index(hand[HandIndex::H3]);
-        let card3 = card3.clone();
-        let (card4, _) = deck.index(hand[HandIndex::H4]);
-        let card4 = card4.clone();
-        let (selected_card, _) = deck.index(hand[self.state.hand_idx]);
-        let selected_card = selected_card.clone();
-        html! {
-            <section id="page">
-                <BoardComponent
-                    board={board}
-                    handidx={self.state.hand_idx}
-                    selectedcard={selected_card}
-                    onclick={onclick_space}/>
-                <div class={classes!("choices")}>
-                    <CardComponent
-                        card={card1}
-                        onclick={onclick_card.clone()}
-                        handidx={HandIndex::H1}
-                        selected={self.state.hand_idx == HandIndex::H1}/>
-                    <CardComponent
-                        card={card2}
-                        onclick={onclick_card.clone()}
-                        handidx={HandIndex::H2}
-                        selected={self.state.hand_idx == HandIndex::H2}/>
-                    <CardComponent
-                        card={card3}
-                        onclick={onclick_card.clone()}
-                        handidx={HandIndex::H3}
-                        selected={self.state.hand_idx == HandIndex::H3}/>
-                    <CardComponent
-                        card={card4}
-                        onclick={onclick_card.clone()}
-                        handidx={HandIndex::H4}
-                        selected={self.state.hand_idx == HandIndex::H4}/>
-                    <button>{"Pass"}</button>
-                    <button>{"Special"}</button>
-                </div>
-                <div class={classes!("timer")}>
-                    <div>{"Turns left: 12"}</div>
-                    <div>{"Time remaining: 1:30"}</div> 
-                </div>
-                <div class={classes!("special-gauge")}>{"Special gauge: 0"}</div>
-                <button class={classes!("deck")}>{"View deck"}</button>
-            </section>
-        }
+fn view_battle(ctx: &Context<Battle>, state: &BattleState) -> Html {
+    match state.phase {
+        BattlePhase::Redraw => view_redraw(ctx, state),
+        BattlePhase::Input => view_input(ctx, state),
+        _ => html! { "non-battle phase" }
+    }
+}
+
+fn view_redraw(ctx: &Context<Battle>, state: &BattleState) -> Html {
+    let onclick_redraw = ctx.link().callback(|_| Message::Redraw);
+    let onclick_keep = ctx.link().callback(|_| Message::KeepHand);
+    html! {
+        <section id="page">
+            <button onclick={onclick_redraw}>{"Redraw"}</button>
+            <button onclick={onclick_keep}>{"Keep hand"}</button>
+        </section>
+    }
+}
+
+fn view_input(ctx: &Context<Battle>, state: &BattleState) -> Html {
+    let onclick_space = ctx.link().callback(|(x, y)| Message::ClickSpace(x, y));
+    let onclick_card = ctx.link().callback(|hand_idx| Message::ClickCard(hand_idx));
+    let board = state.board.clone();
+    let hand = state.hand.clone();
+    let deck = state.deck.clone();
+    let (card1, _) = deck.index(hand[HandIndex::H1]);
+    let card1 = card1.clone();
+    let (card2, _) = deck.index(hand[HandIndex::H2]);
+    let card2 = card2.clone();
+    let (card3, _) = deck.index(hand[HandIndex::H3]);
+    let card3 = card3.clone();
+    let (card4, _) = deck.index(hand[HandIndex::H4]);
+    let card4 = card4.clone();
+    let (selected_card, _) = deck.index(hand[state.hand_idx]);
+    let selected_card = selected_card.clone();
+    html! {
+        <section id="page">
+            <BoardComponent
+                board={board}
+                handidx={state.hand_idx}
+                selectedcard={selected_card}
+                onclick={onclick_space}/>
+            <div class={classes!("choices")}>
+                <CardComponent
+                    card={card1}
+                    onclick={onclick_card.clone()}
+                    handidx={HandIndex::H1}
+                    selected={state.hand_idx == HandIndex::H1}/>
+                <CardComponent
+                    card={card2}
+                    onclick={onclick_card.clone()}
+                    handidx={HandIndex::H2}
+                    selected={state.hand_idx == HandIndex::H2}/>
+                <CardComponent
+                    card={card3}
+                    onclick={onclick_card.clone()}
+                    handidx={HandIndex::H3}
+                    selected={state.hand_idx == HandIndex::H3}/>
+                <CardComponent
+                    card={card4}
+                    onclick={onclick_card.clone()}
+                    handidx={HandIndex::H4}
+                    selected={state.hand_idx == HandIndex::H4}/>
+                <button>{"Pass"}</button>
+                <button>{"Special"}</button>
+            </div>
+            <div class={classes!("timer")}>
+                <div>{"Turns left: 12"}</div>
+                <div>{"Time remaining: 1:30"}</div> 
+            </div>
+            <div class={classes!("special-gauge")}>{"Special gauge: 0"}</div>
+            <button class={classes!("deck")}>{"View deck"}</button>
+        </section>
     }
 }
 

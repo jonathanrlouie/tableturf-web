@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use yew_agent::{Worker, WorkerLink, Public, HandlerId};
+use gloo::console::log;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Request {
@@ -9,6 +10,8 @@ pub enum Request {
 
 pub struct WebSocketWorker {
     link: WorkerLink<Self>,
+    // subscribed Yew components that we will forward messages received from the backend to
+    subscribers: HashSet<HandlerId>,
 }
 
 impl Worker for WebSocketWorker {
@@ -20,6 +23,7 @@ impl Worker for WebSocketWorker {
     fn create(link: WorkerLink<Self>) -> Self {
         Self {
             link,
+            subscribers: HashSet::new()
         }
     }
 
@@ -30,7 +34,9 @@ impl Worker for WebSocketWorker {
     fn handle_input(&mut self, msg: Self::Input, id: HandlerId) {
         match msg {
             Request::Input(s) => {
-                self.link.respond(id, s);
+                for sub in self.subscribers.iter() {
+                    self.link.respond(*sub, s.clone());
+                }
             }
         }
     }
@@ -41,5 +47,13 @@ impl Worker for WebSocketWorker {
 
     fn resource_path_is_relative() -> bool {
         true
+    }
+
+    fn connected(&mut self, id: HandlerId) {
+        self.subscribers.insert(id);
+    }
+
+    fn disconnected(&mut self, id: HandlerId) {
+        self.subscribers.remove(&id);
     }
 }
