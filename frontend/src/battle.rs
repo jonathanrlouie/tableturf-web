@@ -15,20 +15,25 @@ const CURSOR_OFFSET: usize = 4;
 
 #[derive(Debug, Clone)]
 pub enum Message {
+    GameInput(GameInput),
+    WorkerMsg(String)
+}
+
+#[derive(Debug, Clone)]
+pub enum GameInput {
     Redraw,
     KeepHand,
     ClickCard(HandIndex),
-    ClickSpace(usize, usize),
-    WorkerMsg(String)
+    ClickSpace(usize, usize)
 }
 
 impl fmt::Display for Message {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Message::Redraw => write!(f, "Redraw"),
-            Message::KeepHand => write!(f, "KeepHand"),
-            Message::ClickCard(idx) => write!(f, "ClickCard: {:?}", idx),
-            Message::ClickSpace(x, y) => write!(f, "ClickSpace: {:?}, {:?}", x, y),
+            Message::GameInput(GameInput::Redraw) => write!(f, "Redraw"),
+            Message::GameInput(GameInput::KeepHand) => write!(f, "KeepHand"),
+            Message::GameInput(GameInput::ClickCard(idx)) => write!(f, "ClickCard: {:?}", idx),
+            Message::GameInput(GameInput::ClickSpace(x, y)) => write!(f, "ClickSpace: {:?}, {:?}", x, y),
             Message::WorkerMsg(s) => write!(f, "WorkerMsg: {}", s),
         }
     }
@@ -50,22 +55,38 @@ pub struct CardProps {
     pub selected: bool,
 }
 
-#[derive(Clone)]
+// There is a separate phase for searching for an opponent because the battle state doesn't exist yet at that point
+#[derive(Clone, Debug)]
 enum Phase {
-    WaitingForGameStart,
+    SearchingForOpponent,
     Battling(BattleState)
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum BattlePhase {
+    // Phase where player needs to choose to redraw their hand or not
     Redraw,
+    // Phase where player waits for opponent to choose if they want to redraw their hand
     WaitingForBattleStart,
+    // Phase where player needs to place a card or pass
     Input,
+    // Phase where player is waiting for opponent to place a card or pass
     WaitingForOpponentInput,
+    // Phase where game is over and player needs to choose to rematch or not
     GameEnd
 }
 
-#[derive(Clone)]
+impl fmt::Display for Phase {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Phase::SearchingForOpponent => write!(f, "Redraw"),
+            Phase::Battling(state) => write!(f, "Battling with state: {:?}", state),
+        }
+    }
+}
+
+
+#[derive(Clone, Debug)]
 struct BattleState {
     phase: BattlePhase,
     board: Board,
@@ -84,6 +105,84 @@ pub struct Battle {
     ws_sender: Sender<String>,
     phase: Phase,
     worker: Box<dyn Bridge<WebSocketWorker>>
+}
+
+
+// Processes a response from the backend server
+fn process_response(phase: &mut Phase, response: String) {
+    match *phase {
+        Phase::SearchingForOpponent => {
+            log!("Entering Redraw state");
+            let game_state: GameStateMsg = serde_json::from_str(&response).unwrap();
+            *phase = Phase::Battling(BattleState {
+                phase: BattlePhase::Redraw,
+                board: game_state.board,
+                hand_idx: HandIndex::H1,
+                hand: game_state.player.hand().clone(),
+                deck: game_state.player.deck().clone(),
+                turns_left: 12,
+            });
+        }
+        Phase::Battling(ref mut state) => {
+            process_battle_response(response, state)
+        }   
+    }
+}    
+
+fn process_battle_response(response: String, state: &mut BattleState) {
+    match state.phase {
+        BattlePhase::Redraw => {},
+        BattlePhase::WaitingForBattleStart => {
+            let game_state: GameStateMsg = serde_json::from_str(&response).unwrap();
+            state.board = game_state.board;
+            state.hand_idx = HandIndex::H1;
+            state.hand = game_state.player.hand().clone();
+            state.deck = game_state.player.deck().clone();
+            state.phase = BattlePhase::Input;
+        },
+        BattlePhase::Input => {},
+        BattlePhase::WaitingForOpponentInput => {
+            if state.turns_left == 0 {
+                let game_state: GameStateMsg = serde_json::from_str(&response).unwrap();
+                state.phase = BattlePhase::GameEnd;
+            } else {
+                let game_state: GameEnd = serde_json::from_str(&response).unwrap();
+                state.board = game_state.board;
+                state.phase = BattlePhase::Input;
+                state.turns_left -= 1;
+            }
+        },
+        BattlePhase::GameEnd => {},
+    }
+}
+
+fn process_input(ws_sender: &mut Sender<String>, input: GameInput, state: &mut BattleState) {
+    match input {
+        GameInput::Redraw => {
+            state.phase = BattlePhase::WaitingForBattleStart;
+        }
+        GameInput::KeepHand => {
+            state.phase = BattlePhase::WaitingForBattleStart;
+            ws_sender.try_send(serde_json::to_string(&true).unwrap()).unwrap();
+        }
+        GameInput::ClickCard(hand_idx) => {
+            state.hand_idx = hand_idx;
+            ws_sender.try_send(serde_json::to_string(&false).unwrap()).unwrap();
+        }
+        GameInput::ClickSpace(x, y) => {
+            let input = RawInput {
+                hand_idx: state.hand_idx,
+                action: Action::Place(RawPlacement {
+                    x,
+                    y,
+                    special_activated: false,
+                    rotation: Rotation::Zero,
+                }),
+            };
+            ws_sender.try_send(serde_json::to_string(&input).unwrap()).unwrap();
+            state.phase = BattlePhase::WaitingForOpponentInput;
+        }
+    }
 }
 
 impl Component for Battle {
@@ -106,87 +205,27 @@ impl Component for Battle {
 
         Self {
             ws_sender,
-            phase: Phase::WaitingForGameStart,
+            phase: Phase::SearchingForOpponent,
             worker,
         }
     }
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         log!("Entering update");
+
         match (msg.clone(), &mut self.phase) {
-            (Message::WorkerMsg(response), Phase::WaitingForGameStart) => {
-                log!("Entering Redraw state");
-                let game_state: GameStateMsg = serde_json::from_str(&response).unwrap();
-                self.phase = Phase::Battling(BattleState {
-                    phase: BattlePhase::Redraw,
-                    board: game_state.board,
-                    hand_idx: HandIndex::H1,
-                    hand: game_state.player.hand().clone(),
-                    deck: game_state.player.deck().clone(),
-                    turns_left: 12,
-                });
-            }
-            (Message::WorkerMsg(response), Phase::Battling(ref mut state)) => {
-                match state.phase {
-                    BattlePhase::Redraw => {},
-                    BattlePhase::WaitingForBattleStart => {
-                        let game_state: GameStateMsg = serde_json::from_str(&response).unwrap();
-                        state.board = game_state.board;
-                        state.hand_idx = HandIndex::H1;
-                        state.hand = game_state.player.hand().clone();
-                        state.deck = game_state.player.deck().clone();
-                        state.phase = BattlePhase::Input;
-                    },
-                    BattlePhase::Input => {},
-                    BattlePhase::WaitingForOpponentInput => {
-                        if state.turns_left == 0 {
-                            let game_state: GameStateMsg = serde_json::from_str(&response).unwrap();
-                            state.phase = BattlePhase::GameEnd;
-                        } else {
-                            let game_state: GameEnd = serde_json::from_str(&response).unwrap();
-                            state.board = game_state.board;
-                            state.phase = BattlePhase::Input;
-                            state.turns_left -= 1;
-                        }
-                    },
-                    BattlePhase::GameEnd => {},
-                }
-            }
-            (Message::Redraw, Phase::Battling(ref mut state)) => {
-                state.phase = BattlePhase::WaitingForBattleStart;
-            }
-            (Message::KeepHand, Phase::Battling(ref mut state)) => {
-                state.phase = BattlePhase::WaitingForBattleStart;
-                self.ws_sender.try_send(serde_json::to_string(&true).unwrap()).unwrap();
-            }
-            (Message::ClickCard(hand_idx), Phase::Battling(ref mut state)) => {
-                state.hand_idx = hand_idx;
-                self.ws_sender.try_send(serde_json::to_string(&false).unwrap()).unwrap();
-            }
-            (Message::ClickSpace(x, y), Phase::Battling(ref mut state)) => {
-                let input = RawInput {
-                    hand_idx: state.hand_idx,
-                    action: Action::Place(RawPlacement {
-                        x,
-                        y,
-                        special_activated: false,
-                        rotation: Rotation::Zero,
-                    }),
-                };
-                self.ws_sender.try_send(serde_json::to_string(&input).unwrap()).unwrap();
-                state.phase = BattlePhase::WaitingForOpponentInput;
-            }
-            _ => {
-                log!(msg.to_string());
-            }
+            (Message::WorkerMsg(response), phase) => process_response(phase, response),
+            (Message::GameInput(input), Phase::Battling(ref mut state)) => process_input(&mut self.ws_sender, input, state),
+            _ => log!("Invalid message and phase: message: {}, phase: {}", msg.to_string(), self.phase.to_string())
         }
+       
         true
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         log!("view function entered");
         match &self.phase {
-            Phase::WaitingForGameStart => html! { "hello" },
+            Phase::SearchingForOpponent => html! { "Searching for opponent..." },
             Phase::Battling(state) => view_battle(ctx, &state),
         }
     }
@@ -196,13 +235,14 @@ fn view_battle(ctx: &Context<Battle>, state: &BattleState) -> Html {
     match state.phase {
         BattlePhase::Redraw => view_redraw(ctx, state),
         BattlePhase::Input => view_input(ctx, state),
+        BattlePhase::WaitingForOpponentInput => html! { "Waiting for opponent input" },
         _ => html! { "non-battle phase" }
     }
 }
 
 fn view_redraw(ctx: &Context<Battle>, state: &BattleState) -> Html {
-    let onclick_redraw = ctx.link().callback(|_| Message::Redraw);
-    let onclick_keep = ctx.link().callback(|_| Message::KeepHand);
+    let onclick_redraw = ctx.link().callback(|_| Message::GameInput(GameInput::Redraw));
+    let onclick_keep = ctx.link().callback(|_| Message::GameInput(GameInput::KeepHand));
     html! {
         <section id="page">
             <button onclick={onclick_redraw}>{"Redraw"}</button>
@@ -212,8 +252,8 @@ fn view_redraw(ctx: &Context<Battle>, state: &BattleState) -> Html {
 }
 
 fn view_input(ctx: &Context<Battle>, state: &BattleState) -> Html {
-    let onclick_space = ctx.link().callback(|(x, y)| Message::ClickSpace(x, y));
-    let onclick_card = ctx.link().callback(|hand_idx| Message::ClickCard(hand_idx));
+    let onclick_space = ctx.link().callback(|(x, y)| Message::GameInput(GameInput::ClickSpace(x, y)));
+    let onclick_card = ctx.link().callback(|hand_idx| Message::GameInput(GameInput::ClickCard(hand_idx)));
     let board = state.board.clone();
     let hand = state.hand.clone();
     let deck = state.deck.clone();
