@@ -325,7 +325,10 @@ impl<R: DrawRng + Default + Debug> Default for GameState<R> {
         let (deck1, hand1) = Deck::draw_hand(default_deck(), &mut rng);
         let (deck2, hand2) = Deck::draw_hand(default_deck(), &mut rng);
 
-        let players = [Player::new(hand1, deck1, 0), Player::new(hand2, deck2, 0)];
+        let players = [
+            Player::new(hand1, deck1, PlayerNum::P1, 0),
+            Player::new(hand2, deck2, PlayerNum::P2, 0),
+        ];
         GameState::new(board, players, 12, rng)
     }
 }
@@ -424,10 +427,12 @@ impl<R: DrawRng + Debug> GameState<R> {
 
         let overlap: Vec<(BoardPosition, InkSpace, InkSpace)> = placement1
             .ink_spaces()
+            .0
             .iter()
             .filter_map(|(bp1, s1)| {
                 placement2
                     .ink_spaces()
+                    .0
                     .iter()
                     .find(|&&(bp2, _)| bp1.x() == bp2.x() && bp1.y() == bp2.y())
                     .map(|(_, s2)| (*bp1, *s1, *s2))
@@ -507,10 +512,13 @@ fn update_special_gauge(player: &mut Player, player_num: PlayerNum, board: &mut 
     let special_spaces = board.get_surrounded_inactive_specials(player_num);
     // activate surrounded special spaces
     for (bp, _) in &special_spaces {
-        board.set_space(bp, BoardSpace::Special {
-            player_num,
-            is_activated: true,
-        });
+        board.set_space(
+            bp,
+            BoardSpace::Special {
+                player_num,
+                is_activated: true,
+            },
+        );
     }
     player.special += special_spaces.len() as u32;
 }
@@ -591,10 +599,10 @@ mod tests {
         .unwrap();
 
         let (deck1, hand1) = draw_hand1();
-        let player1 = Player::new(hand1, deck1, 0);
+        let player1 = Player::new(hand1, deck1, PlayerNum::P1, 0);
 
         let (deck1, hand1) = draw_hand1();
-        let player2 = Player::new(hand1, deck1, 0);
+        let player2 = Player::new(hand1, deck1, PlayerNum::P2, 0);
 
         GameState::new(board, [player1, player2], 12, MockRng1)
     }
@@ -616,10 +624,10 @@ mod tests {
         .unwrap();
 
         let (deck1, hand1) = draw_hand1();
-        let player1 = Player::new(hand1, deck1, 0);
+        let player1 = Player::new(hand1, deck1, PlayerNum::P1, 0);
 
         let (deck2, hand2) = Deck::draw_hand(default_deck(), &mut MockRng3);
-        let player2 = Player::new(hand2, deck2, 0);
+        let player2 = Player::new(hand2, deck2, PlayerNum::P2, 0);
 
         GameState::new(board, [player1, player2], 12, MockRng2)
     }

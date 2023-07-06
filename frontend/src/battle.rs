@@ -1,22 +1,25 @@
-use yew::prelude::*;
-use common::{CARD_WIDTH, Deck, Hand, HandIndex, Board, BoardSpace, Card, CardSpace, InkSpace, PlayerNum, DeckRng, GameState, RawInput, Rotation, Action, RawPlacement};
-use std::collections::HashSet;
-use std::rc::Rc;
-use std::fmt;
-use crate::User;
-use futures::channel::mpsc::Sender;
 use crate::worker::WebSocketWorker;
-use common::messages::{GameState as GameStateMsg, GameEnd};
-use yew_agent::{Bridge, Bridged};
 use crate::ws;
+use crate::User;
+use common::messages::{GameEnd, GameState as GameStateMsg};
+use common::{
+    Action, Board, BoardSpace, Card, CardSpace, Deck, DeckRng, GameState, Hand, HandIndex,
+    InkSpace, PlayerNum, RawInput, RawPlacement, Rotation, CARD_WIDTH,
+};
+use futures::channel::mpsc::Sender;
 use gloo::console::log;
+use std::collections::HashSet;
+use std::fmt;
+use std::rc::Rc;
+use yew::prelude::*;
+use yew_agent::{Bridge, Bridged};
 
 const CURSOR_OFFSET: usize = 4;
 
 #[derive(Debug, Clone)]
 pub enum Message {
     GameInput(GameInput),
-    WorkerMsg(String)
+    WorkerMsg(String),
 }
 
 #[derive(Debug, Clone)]
@@ -24,7 +27,7 @@ pub enum GameInput {
     Redraw,
     KeepHand,
     ClickCard(HandIndex),
-    ClickSpace(usize, usize)
+    ClickSpace(usize, usize),
 }
 
 impl fmt::Display for Message {
@@ -33,7 +36,9 @@ impl fmt::Display for Message {
             Message::GameInput(GameInput::Redraw) => write!(f, "Redraw"),
             Message::GameInput(GameInput::KeepHand) => write!(f, "KeepHand"),
             Message::GameInput(GameInput::ClickCard(idx)) => write!(f, "ClickCard: {:?}", idx),
-            Message::GameInput(GameInput::ClickSpace(x, y)) => write!(f, "ClickSpace: {:?}, {:?}", x, y),
+            Message::GameInput(GameInput::ClickSpace(x, y)) => {
+                write!(f, "ClickSpace: {:?}, {:?}", x, y)
+            }
             Message::WorkerMsg(s) => write!(f, "WorkerMsg: {}", s),
         }
     }
@@ -59,7 +64,7 @@ pub struct CardProps {
 #[derive(Clone, Debug)]
 enum Phase {
     SearchingForOpponent,
-    Battling(BattleState)
+    Battling(BattleState),
 }
 
 #[derive(Clone, Debug)]
@@ -73,7 +78,7 @@ enum BattlePhase {
     // Phase where player is waiting for opponent to place a card or pass
     WaitingForOpponentInput,
     // Phase where game is over and player needs to choose to rematch or not
-    GameEnd
+    GameEnd,
 }
 
 impl fmt::Display for Phase {
@@ -85,11 +90,11 @@ impl fmt::Display for Phase {
     }
 }
 
-
 #[derive(Clone, Debug)]
 struct BattleState {
     phase: BattlePhase,
     board: Board,
+    player_num: PlayerNum,
     hand_idx: HandIndex,
     hand: Hand,
     deck: Deck,
@@ -98,15 +103,14 @@ struct BattleState {
 
 #[derive(Clone)]
 struct CursorState {
-    cursor: HashSet<(usize, usize)>
+    cursor: HashSet<(usize, usize)>,
 }
 
 pub struct Battle {
     ws_sender: Sender<String>,
     phase: Phase,
-    worker: Box<dyn Bridge<WebSocketWorker>>
+    worker: Box<dyn Bridge<WebSocketWorker>>,
 }
-
 
 // Processes a response from the backend server
 fn process_response(phase: &mut Phase, response: String) {
@@ -117,21 +121,20 @@ fn process_response(phase: &mut Phase, response: String) {
             *phase = Phase::Battling(BattleState {
                 phase: BattlePhase::Redraw,
                 board: game_state.board,
+                player_num: game_state.player.player_num(),
                 hand_idx: HandIndex::H1,
                 hand: game_state.player.hand().clone(),
                 deck: game_state.player.deck().clone(),
                 turns_left: 12,
             });
         }
-        Phase::Battling(ref mut state) => {
-            process_battle_response(response, state)
-        }   
+        Phase::Battling(ref mut state) => process_battle_response(response, state),
     }
-}    
+}
 
 fn process_battle_response(response: String, state: &mut BattleState) {
     match state.phase {
-        BattlePhase::Redraw => {},
+        BattlePhase::Redraw => {}
         BattlePhase::WaitingForBattleStart => {
             let game_state: GameStateMsg = serde_json::from_str(&response).unwrap();
             state.board = game_state.board;
@@ -139,20 +142,20 @@ fn process_battle_response(response: String, state: &mut BattleState) {
             state.hand = game_state.player.hand().clone();
             state.deck = game_state.player.deck().clone();
             state.phase = BattlePhase::Input;
-        },
-        BattlePhase::Input => {},
+        }
+        BattlePhase::Input => {}
         BattlePhase::WaitingForOpponentInput => {
             if state.turns_left == 0 {
-                let game_state: GameStateMsg = serde_json::from_str(&response).unwrap();
+                let game_state: GameEnd = serde_json::from_str(&response).unwrap();
                 state.phase = BattlePhase::GameEnd;
             } else {
-                let game_state: GameEnd = serde_json::from_str(&response).unwrap();
+                let game_state: GameStateMsg = serde_json::from_str(&response).unwrap();
                 state.board = game_state.board;
                 state.phase = BattlePhase::Input;
                 state.turns_left -= 1;
             }
-        },
-        BattlePhase::GameEnd => {},
+        }
+        BattlePhase::GameEnd => {}
     }
 }
 
@@ -160,26 +163,32 @@ fn process_input(ws_sender: &mut Sender<String>, input: GameInput, state: &mut B
     match input {
         GameInput::Redraw => {
             state.phase = BattlePhase::WaitingForBattleStart;
+            ws_sender
+                .try_send(serde_json::to_string(&true).unwrap())
+                .unwrap();
         }
         GameInput::KeepHand => {
             state.phase = BattlePhase::WaitingForBattleStart;
-            ws_sender.try_send(serde_json::to_string(&true).unwrap()).unwrap();
+            ws_sender
+                .try_send(serde_json::to_string(&false).unwrap())
+                .unwrap();
         }
         GameInput::ClickCard(hand_idx) => {
             state.hand_idx = hand_idx;
-            ws_sender.try_send(serde_json::to_string(&false).unwrap()).unwrap();
         }
         GameInput::ClickSpace(x, y) => {
             let input = RawInput {
                 hand_idx: state.hand_idx,
                 action: Action::Place(RawPlacement {
-                    x,
-                    y,
+                    x: x - CURSOR_OFFSET,
+                    y: y - CURSOR_OFFSET,
                     special_activated: false,
                     rotation: Rotation::Zero,
                 }),
             };
-            ws_sender.try_send(serde_json::to_string(&input).unwrap()).unwrap();
+            ws_sender
+                .try_send(serde_json::to_string(&input).unwrap())
+                .unwrap();
             state.phase = BattlePhase::WaitingForOpponentInput;
         }
     }
@@ -215,10 +224,16 @@ impl Component for Battle {
 
         match (msg.clone(), &mut self.phase) {
             (Message::WorkerMsg(response), phase) => process_response(phase, response),
-            (Message::GameInput(input), Phase::Battling(ref mut state)) => process_input(&mut self.ws_sender, input, state),
-            _ => log!("Invalid message and phase: message: {}, phase: {}", msg.to_string(), self.phase.to_string())
+            (Message::GameInput(input), Phase::Battling(ref mut state)) => {
+                process_input(&mut self.ws_sender, input, state)
+            }
+            _ => log!(
+                "Invalid message and phase: message: {}, phase: {}",
+                msg.to_string(),
+                self.phase.to_string()
+            ),
         }
-       
+
         true
     }
 
@@ -230,19 +245,23 @@ impl Component for Battle {
         }
     }
 }
-    
+
 fn view_battle(ctx: &Context<Battle>, state: &BattleState) -> Html {
     match state.phase {
         BattlePhase::Redraw => view_redraw(ctx, state),
         BattlePhase::Input => view_input(ctx, state),
         BattlePhase::WaitingForOpponentInput => html! { "Waiting for opponent input" },
-        _ => html! { "non-battle phase" }
+        _ => html! { "non-battle phase" },
     }
 }
 
 fn view_redraw(ctx: &Context<Battle>, state: &BattleState) -> Html {
-    let onclick_redraw = ctx.link().callback(|_| Message::GameInput(GameInput::Redraw));
-    let onclick_keep = ctx.link().callback(|_| Message::GameInput(GameInput::KeepHand));
+    let onclick_redraw = ctx
+        .link()
+        .callback(|_| Message::GameInput(GameInput::Redraw));
+    let onclick_keep = ctx
+        .link()
+        .callback(|_| Message::GameInput(GameInput::KeepHand));
     html! {
         <section id="page">
             <button onclick={onclick_redraw}>{"Redraw"}</button>
@@ -252,9 +271,14 @@ fn view_redraw(ctx: &Context<Battle>, state: &BattleState) -> Html {
 }
 
 fn view_input(ctx: &Context<Battle>, state: &BattleState) -> Html {
-    let onclick_space = ctx.link().callback(|(x, y)| Message::GameInput(GameInput::ClickSpace(x, y)));
-    let onclick_card = ctx.link().callback(|hand_idx| Message::GameInput(GameInput::ClickCard(hand_idx)));
+    let onclick_space = ctx
+        .link()
+        .callback(|(x, y)| Message::GameInput(GameInput::ClickSpace(x, y)));
+    let onclick_card = ctx
+        .link()
+        .callback(|hand_idx| Message::GameInput(GameInput::ClickCard(hand_idx)));
     let board = state.board.clone();
+    let player_num = state.player_num;
     let hand = state.hand.clone();
     let deck = state.deck.clone();
     let (card1, _) = deck.index(hand[HandIndex::H1]);
@@ -300,7 +324,11 @@ fn view_input(ctx: &Context<Battle>, state: &BattleState) -> Html {
             </div>
             <div class={classes!("timer")}>
                 <div>{"Turns left: 12"}</div>
-                <div>{"Time remaining: 1:30"}</div> 
+                <div>{"Time remaining: 1:30"}</div>
+                <div>{format!("Player number: {}", match player_num {
+                    PlayerNum::P1 => "1",
+                    PlayerNum::P2 => "2",
+                })}</div>
             </div>
             <div class={classes!("special-gauge")}>{"Special gauge: 0"}</div>
             <button class={classes!("deck")}>{"View deck"}</button>
@@ -310,7 +338,9 @@ fn view_input(ctx: &Context<Battle>, state: &BattleState) -> Html {
 
 #[function_component(BoardComponent)]
 pub fn board(props: &BoardProps) -> Html {
-    let state = use_state(|| CursorState { cursor: HashSet::new() });
+    let state = use_state(|| CursorState {
+        cursor: HashSet::new(),
+    });
     let width = props.board.width();
     let height = props.board.height();
     let spaces = props.board.spaces();
@@ -319,28 +349,30 @@ pub fn board(props: &BoardProps) -> Html {
         Callback::from(move |(x, y, card): (usize, usize, Card)| {
             let mut cursor = HashSet::new();
             let spaces = card.spaces();
-            let ink_spaces = spaces.iter()
+            let ink_spaces = spaces
+                .iter()
                 .flatten()
                 .enumerate()
                 .filter(|(_, s)| s.is_some());
             for (idx, _) in ink_spaces {
                 let card_x = idx % CARD_WIDTH;
                 let card_y = idx / CARD_WIDTH;
-                match (usize::checked_sub(x + card_x, CURSOR_OFFSET), usize::checked_sub(y + card_y, CURSOR_OFFSET)) {
+                match (
+                    usize::checked_sub(x + card_x, CURSOR_OFFSET),
+                    usize::checked_sub(y + card_y, CURSOR_OFFSET),
+                ) {
                     (Some(x), Some(y)) => {
                         cursor.insert((x, y));
                     }
-                    _ => ()
+                    _ => (),
                 }
-            };
-            state.set(CursorState {
-                cursor 
-            });
+            }
+            state.set(CursorState { cursor });
         })
     };
     html! {
         <div class={classes!("board")}>
-            <div 
+            <div
                 class={classes!("board-grid")}
                 style={format!("display: grid; grid-template-rows: repeat({}, 1fr); grid-template-columns: repeat({}, 1fr)", height, width)}>
                 {
@@ -381,9 +413,10 @@ fn board_space(
         BoardSpace::Ink { player_num } => {
             classes!(get_player_num_class(player_num), "ink", "bordered")
         }
-        BoardSpace::Special { player_num, is_activated } => {
-            get_special_classes(player_num, *is_activated)
-        }
+        BoardSpace::Special {
+            player_num,
+            is_activated,
+        } => get_special_classes(player_num, *is_activated),
         BoardSpace::Wall => classes!("wall", "bordered"),
         BoardSpace::OutOfBounds => classes!("oob"),
     };
@@ -412,20 +445,23 @@ fn get_player_num_class(player_num: &PlayerNum) -> String {
 
 fn get_special_classes(player_num: &PlayerNum, is_activated: bool) -> Classes {
     if is_activated {
-        classes!(get_player_num_class(player_num), "special", "activated", "bordered")
+        classes!(
+            get_player_num_class(player_num),
+            "special",
+            "activated",
+            "bordered"
+        )
     } else {
         classes!(get_player_num_class(player_num), "special", "bordered")
     }
-} 
+}
 
 #[function_component(CardComponent)]
 fn card(props: &CardProps) -> Html {
     let card = &props.card;
     let callback = props.onclick.clone();
     let hand_idx = props.handidx;
-    let onclick = Callback::from(move |_| {
-        callback.emit(hand_idx)
-    });
+    let onclick = Callback::from(move |_| callback.emit(hand_idx));
     html! {
         <button class={if props.selected { classes!("card", "selected") } else { classes!("card") }} {onclick}>
             <div>{card.name()}</div>

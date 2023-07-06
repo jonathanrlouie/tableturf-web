@@ -1,5 +1,5 @@
 use crate::tableturf::player::PlayerNum;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use thiserror::Error;
 
@@ -74,6 +74,33 @@ pub enum BoardSpace {
     OutOfBounds,
 }
 
+impl fmt::Display for BoardSpace {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                BoardSpace::Empty => "MT",
+                BoardSpace::Ink { player_num } => match player_num {
+                    PlayerNum::P1 => "I1",
+                    PlayerNum::P2 => "I2",
+                },
+                BoardSpace::Special {
+                    player_num,
+                    is_activated,
+                } => match (player_num, is_activated) {
+                    (PlayerNum::P1, true) => "A1",
+                    (PlayerNum::P1, false) => "S1",
+                    (PlayerNum::P2, true) => "A2",
+                    (PlayerNum::P2, false) => "S2",
+                },
+                BoardSpace::Wall => "WW",
+                BoardSpace::OutOfBounds => "OB",
+            }
+        )
+    }
+}
+
 impl BoardSpace {
     pub fn is_ink(&self, num: PlayerNum) -> bool {
         match self {
@@ -104,6 +131,12 @@ impl BoardSpace {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct BoardPosition(usize, usize);
+
+impl fmt::Display for BoardPosition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({}, {})", self.0, self.1)
+    }
+}
 
 impl BoardPosition {
     // Ensure that the given position meets the following criteria:
@@ -147,42 +180,42 @@ impl BoardPosition {
         let y_plus_1 = usize::checked_add(y, 1);
         let nw_space = match (x_minus_1, y_minus_1) {
             (Some(x), Some(y)) => board.get_space(x, y),
-            _ => BoardSpace::OutOfBounds
+            _ => BoardSpace::OutOfBounds,
         };
 
         let n_space = match y_minus_1 {
             Some(y) => board.get_space(x, y),
-            None => BoardSpace::OutOfBounds
+            None => BoardSpace::OutOfBounds,
         };
 
         let ne_space = match (x_plus_1, y_minus_1) {
             (Some(x), Some(y)) => board.get_space(x, y),
-            _ => BoardSpace::OutOfBounds
+            _ => BoardSpace::OutOfBounds,
         };
 
         let w_space = match x_minus_1 {
             Some(x) => board.get_space(x, y),
-            None => BoardSpace::OutOfBounds
+            None => BoardSpace::OutOfBounds,
         };
 
         let e_space = match x_plus_1 {
             Some(x) => board.get_space(x, y),
-            None => BoardSpace::OutOfBounds
+            None => BoardSpace::OutOfBounds,
         };
 
         let sw_space = match (x_minus_1, y_plus_1) {
             (Some(x), Some(y)) => board.get_space(x, y),
-            _ => BoardSpace::OutOfBounds
+            _ => BoardSpace::OutOfBounds,
         };
 
         let s_space = match y_plus_1 {
             Some(y) => board.get_space(x, y),
-            None => BoardSpace::OutOfBounds
+            None => BoardSpace::OutOfBounds,
         };
 
         let se_space = match (x_plus_1, y_plus_1) {
             (Some(x), Some(y)) => board.get_space(x, y),
-            _ => BoardSpace::OutOfBounds
+            _ => BoardSpace::OutOfBounds,
         };
 
         [
@@ -221,7 +254,24 @@ pub const MAX_BOARD_HEIGHT: usize = 26;
 pub struct Board {
     width: usize,
     height: usize,
-    spaces: Vec<BoardSpace>
+    spaces: Vec<BoardSpace>,
+}
+
+impl fmt::Display for Board {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let board_string = self
+            .spaces
+            .chunks_exact(self.width)
+            .map(|row| {
+                row.iter()
+                    .map(|s| s.to_string())
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            })
+            .collect::<Vec<String>>()
+            .join("\n");
+        write!(f, "{}", board_string)
+    }
 }
 
 const PADDING: usize = 7;
@@ -262,14 +312,15 @@ impl Board {
         }
 
         // Need to add padding because some cards may be too difficult to place at board edges
-        let start_padding = (0..(width + DOUBLE_PADDING) * PADDING).map(|_| BoardSpace::OutOfBounds);
+        let start_padding =
+            (0..(width + DOUBLE_PADDING) * PADDING).map(|_| BoardSpace::OutOfBounds);
         let end_padding = start_padding.clone();
-        let padded_rows = spaces.iter().map(|row| pad_row(row.iter().cloned())).flatten();
+        let padded_rows = spaces.iter().flat_map(|row| pad_row(row.iter().cloned()));
         let padded_spaces = start_padding.chain(padded_rows).chain(end_padding);
         Ok(Board {
             width: width + DOUBLE_PADDING,
             height: height + DOUBLE_PADDING,
-            spaces: padded_spaces.collect()
+            spaces: padded_spaces.collect(),
         })
     }
 
@@ -315,7 +366,7 @@ impl Board {
         &self,
         player_num: PlayerNum,
         idx: usize,
-        space: BoardSpace
+        space: BoardSpace,
     ) -> Option<(BoardPosition, BoardSpace)> {
         let x = idx % self.width;
         let y = idx / self.width;
@@ -334,7 +385,8 @@ impl Board {
     }
 
     pub fn count_inked_spaces(&self, player_num: PlayerNum) -> u32 {
-        self.spaces.iter()
+        self.spaces
+            .iter()
             .filter(|s| s.is_ink(player_num))
             .fold(0, |acc, _| acc + 1)
     }

@@ -1,7 +1,7 @@
 use crate::tableturf::card::Card;
 use crate::tableturf::deck::{Deck, DrawRng, Hand, HandIndex};
 use crate::tableturf::input::Placement;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::ops::{Index, IndexMut};
 
 #[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq)]
@@ -42,16 +42,22 @@ impl Players {
 pub struct Player {
     hand: Hand,
     deck: Deck,
+    player_num: PlayerNum,
     pub special: u32,
 }
 
 impl Player {
-    pub fn new(hand: Hand, deck: Deck, special: u32) -> Self {
+    pub fn new(hand: Hand, deck: Deck, player_num: PlayerNum, special: u32) -> Self {
         Player {
             hand,
             deck,
+            player_num,
             special,
         }
+    }
+
+    pub fn player_num(&self) -> PlayerNum {
+        self.player_num
     }
 
     pub fn hand(&self) -> &Hand {
@@ -140,7 +146,7 @@ mod tests {
             ],
             &mut MockRng,
         );
-        let mut player = Player::new(hand, deck, 0);
+        let mut player = Player::new(hand, deck, PlayerNum::P1, 0);
         player.replace_card(HandIndex::H1, &mut MockRng);
         let deck_idx = player.hand[HandIndex::H1];
         assert_eq!(deck_idx, DeckIndex::D5);

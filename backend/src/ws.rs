@@ -1,7 +1,7 @@
 use crate::client::{Client, Clients, SendMsg, Sender, Status};
 use crate::game::{Game, Games};
 use crate::util;
-use common::{GameState, PlayerNum, messages};
+use common::{messages, GameState, PlayerNum};
 use futures::{FutureExt, StreamExt};
 use hashbrown::HashMap;
 use tokio::sync::mpsc;
@@ -84,6 +84,7 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients, games: &mut Games
             };
             let opponent_id = &game.opponent_id(id.to_string());
             let [client, opponent] = clients_map.get_many_mut([id, opponent_id]).unwrap();
+            info!("Handling message from player");
             game.handle_message(
                 player_num,
                 message,

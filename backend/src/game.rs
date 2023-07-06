@@ -1,8 +1,7 @@
 use crate::client::SendMsg;
 use crate::util;
 use common::{
-    DeckRng, DrawRng, GameState, InputError, Outcome, PlayerNum,
-    RawInput, ValidInput, messages
+    messages, DeckRng, DrawRng, GameState, InputError, Outcome, PlayerNum, RawInput, ValidInput,
 };
 use hashbrown::HashMap;
 use serde::Serialize;
@@ -179,7 +178,6 @@ impl<R: DrawRng + Default + Debug> Game<R> {
             input,
             self.game_state.board(),
             self.game_state.player(player_num),
-            player_num,
         )?;
         let choices = match player_num {
             PlayerNum::P1 => [Some(validated_input), inputs[1].clone()],
@@ -192,19 +190,44 @@ impl<R: DrawRng + Default + Debug> Game<R> {
                     let winner = self.game_state.check_winner();
                     match (winner, player_num) {
                         (Outcome::P1Win, PlayerNum::P1) => {
-                            self.send_outcomes(client, messages::Outcome::Win, opponent, messages::Outcome::Lose);
+                            self.send_outcomes(
+                                client,
+                                messages::Outcome::Win,
+                                opponent,
+                                messages::Outcome::Lose,
+                            );
                         }
                         (Outcome::P2Win, PlayerNum::P1) => {
-                            self.send_outcomes(client, messages::Outcome::Lose, opponent, messages::Outcome::Win);
+                            self.send_outcomes(
+                                client,
+                                messages::Outcome::Lose,
+                                opponent,
+                                messages::Outcome::Win,
+                            );
                         }
                         (Outcome::P1Win, PlayerNum::P2) => {
-                            self.send_outcomes(client, messages::Outcome::Lose, opponent, messages::Outcome::Win);
+                            self.send_outcomes(
+                                client,
+                                messages::Outcome::Lose,
+                                opponent,
+                                messages::Outcome::Win,
+                            );
                         }
                         (Outcome::P2Win, PlayerNum::P2) => {
-                            self.send_outcomes(client, messages::Outcome::Win, opponent, messages::Outcome::Lose);
+                            self.send_outcomes(
+                                client,
+                                messages::Outcome::Win,
+                                opponent,
+                                messages::Outcome::Lose,
+                            );
                         }
                         (Outcome::Draw, _) => {
-                            self.send_outcomes(client, messages::Outcome::Draw, opponent, messages::Outcome::Draw);
+                            self.send_outcomes(
+                                client,
+                                messages::Outcome::Draw,
+                                opponent,
+                                messages::Outcome::Draw,
+                            );
                         }
                     }
                     //info!("Game end state: {:?}", self.game_state.board());
@@ -225,6 +248,7 @@ impl<R: DrawRng + Default + Debug> Game<R> {
             }
             _ => ProtocolState::InGame(choices),
         };
+        info!("Protocol state: {:?}", state);
         Ok(state)
     }
 
@@ -277,7 +301,6 @@ fn send_redraw_responses<R: DrawRng + Debug>(
     };
     send_messages(client, client_msg, opponent, opponent_msg);
 }
-
 
 fn other_player(player_num: PlayerNum) -> PlayerNum {
     match player_num {

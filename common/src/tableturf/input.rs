@@ -2,22 +2,23 @@ use crate::tableturf::board::{Board, BoardPosition, BoardPositionError, BoardSpa
 use crate::tableturf::card::{Card, Grid, InkSpace, CARD_WIDTH};
 use crate::tableturf::deck::HandIndex;
 use crate::tableturf::player::{Player, PlayerNum};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use std::fmt;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum InputError {
     #[error("Insufficient special. Current special: {special}. Required: {required}")]
     InsufficientSpecial { special: u32, required: u32 },
-    #[error("invalid placement position: {0}")]
+    #[error("Invalid placement position: {0}")]
     InvalidPosition(BoardPositionError),
-    #[error("special placement is overlapping walls or special spaces")]
+    #[error("Special placement is overlapping walls or special spaces")]
     SpecialCollision,
-    #[error("special placement not adjacent to a special square")]
+    #[error("Special placement not adjacent to a special square")]
     SpecialNotAdjacentToSpecialSquare,
-    #[error("ink placement not over empty tiles")]
-    InkCollision,
-    #[error("ink placement not adjacent to player's ink")]
+    #[error("Ink placement not over empty tiles.\nPlacement:\n{0}\nBoard:\n{1}")]
+    InkCollision(InkSpaces, Board),
+    #[error("Ink placement not adjacent to player's ink")]
     InkNotAdjacentToInk,
 }
 
@@ -63,10 +64,27 @@ pub enum Input {
     Place(Placement),
 }
 
+// Inked spaces with absolute board positions
+#[derive(Clone, Debug)]
+pub struct InkSpaces(pub Vec<(BoardPosition, InkSpace)>);
+
+impl fmt::Display for InkSpaces {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "[ {} ]",
+            self.0
+                .iter()
+                .map(|pair| format!("({}, {:?})", pair.0, pair.1))
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Placement {
-    // Inked spaces with absolute board positions
-    ink_spaces: Vec<(BoardPosition, InkSpace)>,
+    ink_spaces: InkSpaces,
     special_activated: bool,
 }
 
@@ -76,7 +94,6 @@ impl Placement {
         hand_idx: HandIndex,
         board: &Board,
         player: &Player,
-        player_num: PlayerNum,
     ) -> Result<Placement, InputError> {
         let RawPlacement {
             x: board_x,
@@ -117,27 +134,30 @@ impl Placement {
             }
 
             // Check that ink placement is adjacent to one of the player's special spaces
-            if !placement_adjacent_to_special(&ink_spaces[..], board, player_num) {
+            if !placement_adjacent_to_special(&ink_spaces[..], board, player.player_num()) {
                 return Err(InputError::SpecialNotAdjacentToSpecialSquare);
             }
         // Check that ink placement is over empty squares
         } else {
             if placement_collision(&ink_spaces[..], board) {
-                return Err(InputError::InkCollision);
+                return Err(InputError::InkCollision(
+                    InkSpaces(ink_spaces),
+                    board.clone(),
+                ));
             }
 
             // Check that ink placement is adjacent to player's ink
-            if !placement_adjacent_to_ink(&ink_spaces[..], board, player_num) {
+            if !placement_adjacent_to_ink(&ink_spaces[..], board, player.player_num()) {
                 return Err(InputError::InkNotAdjacentToInk);
             }
         }
         Ok(Placement {
-            ink_spaces,
+            ink_spaces: InkSpaces(ink_spaces),
             special_activated,
         })
     }
 
-    pub fn ink_spaces(&self) -> &Vec<(BoardPosition, InkSpace)> {
+    pub fn ink_spaces(&self) -> &InkSpaces {
         &self.ink_spaces
     }
 
@@ -147,6 +167,7 @@ impl Placement {
 
     pub fn into_board_spaces(self, player_num: PlayerNum) -> Vec<(BoardPosition, BoardSpace)> {
         self.ink_spaces
+            .0
             .iter()
             .map(|(bp, s)| (*bp, into_board_space(s, player_num)))
             .collect()
@@ -158,12 +179,7 @@ impl ValidInput {
     // - board position
     // - card index in hand
     // - special availability
-    pub fn new(
-        input: RawInput,
-        board: &Board,
-        player: &Player,
-        player_num: PlayerNum,
-    ) -> Result<Self, InputError> {
+    pub fn new(input: RawInput, board: &Board, player: &Player) -> Result<Self, InputError> {
         let hand_idx = input.hand_idx;
         match input.action {
             Action::Pass => Ok(Self {
@@ -171,7 +187,7 @@ impl ValidInput {
                 input: Input::Pass,
             }),
             Action::Place(raw_placement) => {
-                let placement = Placement::new(raw_placement, hand_idx, board, player, player_num)?;
+                let placement = Placement::new(raw_placement, hand_idx, board, player)?;
 
                 Ok(Self {
                     hand_idx,
@@ -224,12 +240,9 @@ fn placement_adjacent_to_special(
 
 // Test if an entire placement of ink overlaps ink or walls
 fn placement_collision(inked_spaces: &[(BoardPosition, InkSpace)], board: &Board) -> bool {
-    inked_spaces.iter().any(|(bp, _)| {
-        !matches!(
-            board.get_space(bp.x(), bp.y()),
-            BoardSpace::Empty
-        )
-    })
+    inked_spaces
+        .iter()
+        .any(|(bp, _)| !matches!(board.get_space(bp.x(), bp.y()), BoardSpace::Empty))
 }
 
 // Test if an entire special placement of ink overlaps any special spaces or walls
@@ -658,19 +671,11 @@ mod tests {
             Placement::new(raw_placement, HandIndex::H1, &board, &player, PlayerNum::P1);
         assert!(placement.is_ok());
         let placement = placement.unwrap();
-        assert_eq!(placement.ink_spaces.len(), 3);
-        assert_eq!(
-            placement.ink_spaces[0].0,
-            BoardPosition::new(&board, 7, 7).unwrap()
-        );
-        assert_eq!(
-            placement.ink_spaces[1].0,
-            BoardPosition::new(&board, 8, 7).unwrap()
-        );
-        assert_eq!(
-            placement.ink_spaces[2].0,
-            BoardPosition::new(&board, 7, 8).unwrap()
-        );
+        let ink_spaces = placement.ink_spaces.0;
+        assert_eq!(ink_spaces.len(), 3);
+        assert_eq!(ink_spaces[0].0, BoardPosition::new(&board, 7, 7).unwrap());
+        assert_eq!(ink_spaces[1].0, BoardPosition::new(&board, 8, 7).unwrap());
+        assert_eq!(ink_spaces[2].0, BoardPosition::new(&board, 7, 8).unwrap());
 
         // Test placing ink on top of an inked space
         let board = Board::new(vec![
@@ -1017,7 +1022,7 @@ mod tests {
         .unwrap();
         let (deck, hand) = draw_hand2();
         let special = 5;
-        let player = Player::new(hand, deck, special);
+        let player = Player::new(hand, deck, PlayerNum::P1, special);
         let input = ValidInput::new(
             RawInput {
                 hand_idx: HandIndex::H1,
