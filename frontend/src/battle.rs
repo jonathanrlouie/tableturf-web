@@ -151,6 +151,9 @@ fn process_battle_response(response: String, state: &mut BattleState) {
             } else {
                 let game_state: GameStateMsg = serde_json::from_str(&response).unwrap();
                 state.board = game_state.board;
+                state.hand_idx = HandIndex::H1;
+                state.hand = game_state.player.hand().clone();
+                state.deck = game_state.player.deck().clone();
                 state.phase = BattlePhase::Input;
                 state.turns_left -= 1;
             }
@@ -323,7 +326,7 @@ fn view_input(ctx: &Context<Battle>, state: &BattleState) -> Html {
                 <button>{"Special"}</button>
             </div>
             <div class={classes!("timer")}>
-                <div>{"Turns left: 12"}</div>
+                <div>{format!("Turns left: {}", state.turns_left)}</div>
                 <div>{"Time remaining: 1:30"}</div>
                 <div>{format!("Player number: {}", match player_num {
                     PlayerNum::P1 => "1",
