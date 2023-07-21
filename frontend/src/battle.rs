@@ -4,7 +4,7 @@ use crate::User;
 use common::messages::{GameEnd, GameState as GameStateMsg};
 use common::{
     Action, Board, BoardSpace, Card, CardSpace, Deck, DeckRng, GameState, Hand, HandIndex,
-    InkSpace, PlayerNum, RawInput, RawPlacement, Rotation, CARD_WIDTH,
+    InkSpace, Player, PlayerNum, RawInput, RawPlacement, Rotation, ValidInput, CARD_WIDTH,
 };
 use futures::channel::mpsc::Sender;
 use gloo::console::log;
@@ -94,10 +94,8 @@ impl fmt::Display for Phase {
 struct BattleState {
     phase: BattlePhase,
     board: Board,
-    player_num: PlayerNum,
+    player: Player,
     hand_idx: HandIndex,
-    hand: Hand,
-    deck: Deck,
     turns_left: u32,
 }
 
@@ -121,10 +119,8 @@ fn process_response(phase: &mut Phase, response: String) {
             *phase = Phase::Battling(BattleState {
                 phase: BattlePhase::Redraw,
                 board: game_state.board,
-                player_num: game_state.player.player_num(),
+                player: game_state.player,
                 hand_idx: HandIndex::H1,
-                hand: game_state.player.hand().clone(),
-                deck: game_state.player.deck().clone(),
                 turns_left: 12,
             });
         }
@@ -139,8 +135,7 @@ fn process_battle_response(response: String, state: &mut BattleState) {
             let game_state: GameStateMsg = serde_json::from_str(&response).unwrap();
             state.board = game_state.board;
             state.hand_idx = HandIndex::H1;
-            state.hand = game_state.player.hand().clone();
-            state.deck = game_state.player.deck().clone();
+            state.player = game_state.player.clone();
             state.phase = BattlePhase::Input;
         }
         BattlePhase::Input => {}
@@ -152,14 +147,34 @@ fn process_battle_response(response: String, state: &mut BattleState) {
                 let game_state: GameStateMsg = serde_json::from_str(&response).unwrap();
                 state.board = game_state.board;
                 state.hand_idx = HandIndex::H1;
-                state.hand = game_state.player.hand().clone();
-                state.deck = game_state.player.deck().clone();
+                state.player = game_state.player.clone();
                 state.phase = BattlePhase::Input;
                 state.turns_left -= 1;
             }
         }
         BattlePhase::GameEnd => {}
     }
+}
+
+// Makes sure the player has placed their ink in a legal position before sending to the server
+// Returns the raw input that will be sent to the server
+fn validate_placement(x: usize, y: usize, state: &BattleState) -> Option<RawInput> {
+    let x = usize::checked_sub(x, CURSOR_OFFSET)?;
+    let y = usize::checked_sub(y, CURSOR_OFFSET)?;
+
+    let input = RawInput {
+        hand_idx: state.hand_idx,
+        action: Action::Place(RawPlacement {
+            x,
+            y,
+            special_activated: false,
+            rotation: Rotation::Zero,
+        }),
+    };
+
+    // Check that we got a valid input, but don't return it, since we want the raw input for easier deserialization
+    ValidInput::new(input.clone(), &state.board, &state.player).ok()?;
+    Some(input)
 }
 
 fn process_input(ws_sender: &mut Sender<String>, input: GameInput, state: &mut BattleState) {
@@ -180,19 +195,12 @@ fn process_input(ws_sender: &mut Sender<String>, input: GameInput, state: &mut B
             state.hand_idx = hand_idx;
         }
         GameInput::ClickSpace(x, y) => {
-            let input = RawInput {
-                hand_idx: state.hand_idx,
-                action: Action::Place(RawPlacement {
-                    x: x - CURSOR_OFFSET,
-                    y: y - CURSOR_OFFSET,
-                    special_activated: false,
-                    rotation: Rotation::Zero,
-                }),
-            };
-            ws_sender
-                .try_send(serde_json::to_string(&input).unwrap())
-                .unwrap();
-            state.phase = BattlePhase::WaitingForOpponentInput;
+            if let Some(input) = validate_placement(x, y, state) {
+                ws_sender
+                    .try_send(serde_json::to_string(&input).unwrap())
+                    .unwrap();
+                state.phase = BattlePhase::WaitingForOpponentInput;
+            }
         }
     }
 }
@@ -281,9 +289,10 @@ fn view_input(ctx: &Context<Battle>, state: &BattleState) -> Html {
         .link()
         .callback(|hand_idx| Message::GameInput(GameInput::ClickCard(hand_idx)));
     let board = state.board.clone();
-    let player_num = state.player_num;
-    let hand = state.hand.clone();
-    let deck = state.deck.clone();
+    let player = state.player.clone();
+    let player_num = player.player_num();
+    let hand = player.hand().clone();
+    let deck = player.deck().clone();
     let (card1, _) = deck.index(hand[HandIndex::H1]);
     let card1 = card1.clone();
     let (card2, _) = deck.index(hand[HandIndex::H2]);

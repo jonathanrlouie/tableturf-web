@@ -31,13 +31,13 @@ pub enum Rotation {
     Three,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum Action {
     Pass,
     Place(RawPlacement),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct RawPlacement {
     // The x and y coordinates of the top-left corner of the card's grid
     pub x: usize,
@@ -46,7 +46,7 @@ pub struct RawPlacement {
     pub rotation: Rotation,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct RawInput {
     pub hand_idx: HandIndex,
     pub action: Action,
