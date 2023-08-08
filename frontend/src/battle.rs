@@ -3,7 +3,7 @@ use crate::ws;
 use crate::User;
 use common::messages::{GameEnd, GameState as GameStateMsg};
 use common::{
-    Action, Board, BoardSpace, Card, CardSpace, Deck, DeckRng, GameState, Hand, HandIndex,
+    Action, Board, BoardSpace, Card, CardSpace, Deck, DeckRng, GameState, Grid, Hand, HandIndex,
     InkSpace, Player, PlayerNum, RawInput, RawPlacement, Rotation, ValidInput, CARD_WIDTH,
 };
 use futures::channel::mpsc::Sender;
@@ -27,6 +27,7 @@ pub enum GameInput {
     Redraw,
     KeepHand,
     ClickCard(HandIndex),
+    RotateCard(Rotation),
     ClickSpace(usize, usize),
 }
 
@@ -36,6 +37,9 @@ impl fmt::Display for Message {
             Message::GameInput(GameInput::Redraw) => write!(f, "Redraw"),
             Message::GameInput(GameInput::KeepHand) => write!(f, "KeepHand"),
             Message::GameInput(GameInput::ClickCard(idx)) => write!(f, "ClickCard: {:?}", idx),
+            Message::GameInput(GameInput::RotateCard(rotation)) => {
+                write!(f, "RotateCard: {:?}", rotation)
+            }
             Message::GameInput(GameInput::ClickSpace(x, y)) => {
                 write!(f, "ClickSpace: {:?}, {:?}", x, y)
             }
@@ -49,7 +53,9 @@ pub struct BoardProps {
     pub board: Board,
     pub handidx: HandIndex,
     pub selectedcard: Card,
+    pub rotation: Rotation,
     pub onclick: Callback<(usize, usize)>,
+    pub onrightclick: Callback<Rotation>,
 }
 
 #[derive(Properties, PartialEq)]
@@ -96,6 +102,7 @@ struct BattleState {
     board: Board,
     player: Player,
     hand_idx: HandIndex,
+    rotation: Rotation,
     turns_left: u32,
 }
 
@@ -121,6 +128,7 @@ fn process_response(phase: &mut Phase, response: String) {
                 board: game_state.board,
                 player: game_state.player,
                 hand_idx: HandIndex::H1,
+                rotation: Rotation::Zero,
                 turns_left: 12,
             });
         }
@@ -168,7 +176,7 @@ fn validate_placement(x: usize, y: usize, state: &BattleState) -> Option<RawInpu
             x,
             y,
             special_activated: false,
-            rotation: Rotation::Zero,
+            rotation: state.rotation,
         }),
     };
 
@@ -193,6 +201,9 @@ fn process_input(ws_sender: &mut Sender<String>, input: GameInput, state: &mut B
         }
         GameInput::ClickCard(hand_idx) => {
             state.hand_idx = hand_idx;
+        }
+        GameInput::RotateCard(rotation) => {
+            state.rotation = rotation;
         }
         GameInput::ClickSpace(x, y) => {
             if let Some(input) = validate_placement(x, y, state) {
@@ -288,8 +299,13 @@ fn view_input(ctx: &Context<Battle>, state: &BattleState) -> Html {
     let onclick_card = ctx
         .link()
         .callback(|hand_idx| Message::GameInput(GameInput::ClickCard(hand_idx)));
+    let onrightclick = ctx
+        .link()
+        .callback(|rotation| Message::GameInput(GameInput::RotateCard(rotation)));
     let board = state.board.clone();
     let player = state.player.clone();
+    let special = state.player.special;
+    let rotation = state.rotation;
     let player_num = player.player_num();
     let hand = player.hand().clone();
     let deck = player.deck().clone();
@@ -309,7 +325,10 @@ fn view_input(ctx: &Context<Battle>, state: &BattleState) -> Html {
                 board={board}
                 handidx={state.hand_idx}
                 selectedcard={selected_card}
-                onclick={onclick_space}/>
+                rotation={rotation}
+                onclick={onclick_space}
+                onrightclick={onrightclick}
+            />
             <div class={classes!("choices")}>
                 <CardComponent
                     card={card1}
@@ -342,7 +361,7 @@ fn view_input(ctx: &Context<Battle>, state: &BattleState) -> Html {
                     PlayerNum::P2 => "2",
                 })}</div>
             </div>
-            <div class={classes!("special-gauge")}>{"Special gauge: 0"}</div>
+            <div class={classes!("special-gauge")}>{format!("Special gauge: {}", special)}</div>
             <button class={classes!("deck")}>{"View deck"}</button>
         </section>
     }
@@ -356,29 +375,28 @@ pub fn board(props: &BoardProps) -> Html {
     let width = props.board.width();
     let height = props.board.height();
     let spaces = props.board.spaces();
+    let card = props.selectedcard.clone();
+    let rotation = props.rotation;
+    let onrightclick_board = props.onrightclick.clone();
+    let onrightclick = {
+        let state = state.clone();
+        Callback::from(move |(x, y): (usize, usize)| {
+            let rotation = match rotation {
+                Rotation::Zero => Rotation::One,
+                Rotation::One => Rotation::Two,
+                Rotation::Two => Rotation::Three,
+                Rotation::Three => Rotation::Zero,
+            };
+            onrightclick_board.emit(rotation);
+            let cursor = update_cursor(x, y, &card, rotation);
+            state.set(CursorState { cursor });
+        })
+    };
+    let card = props.selectedcard.clone();
     let onmouseover_space = {
         let state = state.clone();
-        Callback::from(move |(x, y, card): (usize, usize, Card)| {
-            let mut cursor = HashSet::new();
-            let spaces = card.spaces();
-            let ink_spaces = spaces
-                .iter()
-                .flatten()
-                .enumerate()
-                .filter(|(_, s)| s.is_some());
-            for (idx, _) in ink_spaces {
-                let card_x = idx % CARD_WIDTH;
-                let card_y = idx / CARD_WIDTH;
-                match (
-                    usize::checked_sub(x + card_x, CURSOR_OFFSET),
-                    usize::checked_sub(y + card_y, CURSOR_OFFSET),
-                ) {
-                    (Some(x), Some(y)) => {
-                        cursor.insert((x, y));
-                    }
-                    _ => (),
-                }
-            }
+        Callback::from(move |(x, y): (usize, usize)| {
+            let cursor = update_cursor(x, y, &card, rotation);
             state.set(CursorState { cursor });
         })
     };
@@ -397,7 +415,7 @@ pub fn board(props: &BoardProps) -> Html {
                             s,
                             props.onclick.clone(),
                             onmouseover_space.clone(),
-                            props.selectedcard.clone()
+                            onrightclick.clone(),
                         )
                     }).collect::<Html>()
                 }
@@ -406,19 +424,47 @@ pub fn board(props: &BoardProps) -> Html {
     }
 }
 
+fn update_cursor(x: usize, y: usize, card: &Card, rotation: Rotation) -> HashSet<(usize, usize)> {
+    let mut cursor = HashSet::new();
+    let spaces = common::rotate_input(card, rotation);
+    let ink_spaces = spaces
+        .iter()
+        .flatten()
+        .enumerate()
+        .filter(|(_, s)| s.is_some());
+    for (idx, _) in ink_spaces {
+        let card_x = idx % CARD_WIDTH;
+        let card_y = idx / CARD_WIDTH;
+        match (
+            usize::checked_sub(x + card_x, CURSOR_OFFSET),
+            usize::checked_sub(y + card_y, CURSOR_OFFSET),
+        ) {
+            (Some(x), Some(y)) => {
+                cursor.insert((x, y));
+            }
+            _ => (),
+        }
+    }
+    cursor
+}
+
 fn board_space(
     position: (usize, usize),
     cursor: &HashSet<(usize, usize)>,
     space: &BoardSpace,
     onclick_space: Callback<(usize, usize)>,
-    onmouseover_space: Callback<(usize, usize, Card)>,
-    selected_card: Card,
+    onmouseover_space: Callback<(usize, usize)>,
+    onrightclick: Callback<(usize, usize)>,
 ) -> Html {
     let onclick = Callback::from(move |_| {
         onclick_space.emit(position);
     });
     let onmouseover = Callback::from(move |_| {
-        onmouseover_space.emit((position.0, position.1, selected_card.clone()));
+        onmouseover_space.emit(position);
+    });
+    let oncontextmenu = Callback::from(move |e: MouseEvent| {
+        onrightclick.emit(position);
+        e.prevent_default();
     });
     let mut class = match space {
         BoardSpace::Empty => classes!("bordered", "empty"),
@@ -434,7 +480,7 @@ fn board_space(
     };
     class.extend(classes!("board-space"));
     html! {
-        <div class={class} {onclick} {onmouseover}>
+        <div class={class} {onclick} {onmouseover} {oncontextmenu}>
             {
                 if cursor.contains(&position) {
                     html! {

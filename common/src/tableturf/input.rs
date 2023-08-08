@@ -23,7 +23,7 @@ pub enum InputError {
 }
 
 // Represents the number of counter-clockwise rotations applied to a Card
-#[derive(Serialize, Deserialize, Copy, Clone, Debug)]
+#[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq)]
 pub enum Rotation {
     Zero,
     One,
@@ -267,7 +267,7 @@ fn rotate_grid_ccw(grid: &mut Grid) {
     }
 }
 
-fn rotate_input(card: &Card, rotation: Rotation) -> Grid {
+pub fn rotate_input(card: &Card, rotation: Rotation) -> Grid {
     let mut grid = card.spaces();
     match rotation {
         Rotation::Zero => (),
