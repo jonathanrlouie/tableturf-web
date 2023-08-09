@@ -26,6 +26,7 @@ pub enum Message {
 pub enum GameInput {
     Redraw,
     KeepHand,
+    Pass,
     ClickCard(HandIndex),
     RotateCard(Rotation),
     ClickSpace(usize, usize),
@@ -36,6 +37,7 @@ impl fmt::Display for Message {
         match self {
             Message::GameInput(GameInput::Redraw) => write!(f, "Redraw"),
             Message::GameInput(GameInput::KeepHand) => write!(f, "KeepHand"),
+            Message::GameInput(GameInput::Pass) => write!(f, "Pass"),
             Message::GameInput(GameInput::ClickCard(idx)) => write!(f, "ClickCard: {:?}", idx),
             Message::GameInput(GameInput::RotateCard(rotation)) => {
                 write!(f, "RotateCard: {:?}", rotation)
@@ -46,24 +48,6 @@ impl fmt::Display for Message {
             Message::WorkerMsg(s) => write!(f, "WorkerMsg: {}", s),
         }
     }
-}
-
-#[derive(Properties, PartialEq)]
-pub struct BoardProps {
-    pub board: Board,
-    pub handidx: HandIndex,
-    pub selectedcard: Card,
-    pub rotation: Rotation,
-    pub onclick: Callback<(usize, usize)>,
-    pub onrightclick: Callback<Rotation>,
-}
-
-#[derive(Properties, PartialEq)]
-pub struct CardProps {
-    pub card: Card,
-    pub onclick: Callback<HandIndex>,
-    pub handidx: HandIndex,
-    pub selected: bool,
 }
 
 // There is a separate phase for searching for an opponent because the battle state doesn't exist yet at that point
@@ -205,6 +189,16 @@ fn process_input(ws_sender: &mut Sender<String>, input: GameInput, state: &mut B
         GameInput::RotateCard(rotation) => {
             state.rotation = rotation;
         }
+        GameInput::Pass => {
+            let input = RawInput {
+                hand_idx: state.hand_idx,
+                action: Action::Pass,
+            };
+            ws_sender
+                .try_send(serde_json::to_string(&input).unwrap())
+                .unwrap();
+            state.phase = BattlePhase::WaitingForOpponentInput;
+        }
         GameInput::ClickSpace(x, y) => {
             if let Some(input) = validate_placement(x, y, state) {
                 ws_sender
@@ -299,9 +293,10 @@ fn view_input(ctx: &Context<Battle>, state: &BattleState) -> Html {
     let onclick_card = ctx
         .link()
         .callback(|hand_idx| Message::GameInput(GameInput::ClickCard(hand_idx)));
-    let onrightclick = ctx
+    let onrightclick_space = ctx
         .link()
         .callback(|rotation| Message::GameInput(GameInput::RotateCard(rotation)));
+    let onclick_pass = ctx.link().callback(|_| Message::GameInput(GameInput::Pass));
     let board = state.board.clone();
     let player = state.player.clone();
     let special = state.player.special;
@@ -327,7 +322,7 @@ fn view_input(ctx: &Context<Battle>, state: &BattleState) -> Html {
                 selectedcard={selected_card}
                 rotation={rotation}
                 onclick={onclick_space}
-                onrightclick={onrightclick}
+                onrightclick={onrightclick_space}
             />
             <div class={classes!("choices")}>
                 <CardComponent
@@ -350,7 +345,7 @@ fn view_input(ctx: &Context<Battle>, state: &BattleState) -> Html {
                     onclick={onclick_card.clone()}
                     handidx={HandIndex::H4}
                     selected={state.hand_idx == HandIndex::H4}/>
-                <button>{"Pass"}</button>
+                <PassButtonComponent onclick={onclick_pass.clone()}/>
                 <button>{"Special"}</button>
             </div>
             <div class={classes!("timer")}>
@@ -367,6 +362,16 @@ fn view_input(ctx: &Context<Battle>, state: &BattleState) -> Html {
     }
 }
 
+#[derive(Properties, PartialEq)]
+pub struct BoardProps {
+    pub board: Board,
+    pub handidx: HandIndex,
+    pub selectedcard: Card,
+    pub rotation: Rotation,
+    pub onclick: Callback<(usize, usize)>,
+    pub onrightclick: Callback<Rotation>,
+}
+
 #[function_component(BoardComponent)]
 pub fn board(props: &BoardProps) -> Html {
     let state = use_state(|| CursorState {
@@ -377,7 +382,7 @@ pub fn board(props: &BoardProps) -> Html {
     let spaces = props.board.spaces();
     let card = props.selectedcard.clone();
     let rotation = props.rotation;
-    let onrightclick_board = props.onrightclick.clone();
+    let onrightclick_space = props.onrightclick.clone();
     let onrightclick = {
         let state = state.clone();
         Callback::from(move |(x, y): (usize, usize)| {
@@ -387,7 +392,7 @@ pub fn board(props: &BoardProps) -> Html {
                 Rotation::Two => Rotation::Three,
                 Rotation::Three => Rotation::Zero,
             };
-            onrightclick_board.emit(rotation);
+            onrightclick_space.emit(rotation);
             let cursor = update_cursor(x, y, &card, rotation);
             state.set(CursorState { cursor });
         })
@@ -512,6 +517,30 @@ fn get_special_classes(player_num: &PlayerNum, is_activated: bool) -> Classes {
     } else {
         classes!(get_player_num_class(player_num), "special", "bordered")
     }
+}
+
+#[derive(Properties, PartialEq)]
+pub struct PassButtonProps {
+    pub onclick: Callback<()>,
+}
+
+#[function_component(PassButtonComponent)]
+pub fn pass_button(props: &PassButtonProps) -> Html {
+    let onclick_pass = props.onclick.clone();
+    let onclick = Callback::from(move |_| {
+        onclick_pass.emit(());
+    });
+    html! {
+        <button {onclick}>{"Pass"}</button>
+    }
+}
+
+#[derive(Properties, PartialEq)]
+pub struct CardProps {
+    pub card: Card,
+    pub onclick: Callback<HandIndex>,
+    pub handidx: HandIndex,
+    pub selected: bool,
 }
 
 #[function_component(CardComponent)]
